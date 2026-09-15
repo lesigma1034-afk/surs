@@ -6,6 +6,7 @@ local inputKey = ""
 local loadingGui = Instance.new("ScreenGui")
 loadingGui.Name = "LoadingGUI"
 loadingGui.Parent = game.CoreGui
+loadingGui.DisplayOrder = 99999
 
 local loadingFrame = Instance.new("Frame")
 loadingFrame.Size = UDim2.new(0.8, 0, 0.25, 0)
@@ -85,6 +86,7 @@ local function createKeySystem()
     local keyGui = Instance.new("ScreenGui")
     keyGui.Name = "KeyInputGUI"
     keyGui.Parent = game.CoreGui
+    keyGui.DisplayOrder = 99998
 
     local blurEffect = Instance.new("BlurEffect")
     blurEffect.Size = 10
@@ -96,12 +98,6 @@ local function createKeySystem()
     mainContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     mainContainer.BackgroundTransparency = 0.2
     mainContainer.Parent = keyGui
-
-    game:GetService("TweenService"):Create(
-        mainContainer,
-        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        {Position = UDim2.new(0.075, 0, 0.2, 0)}
-    ):Play()
 
     local containerCorner = Instance.new("UICorner")
     containerCorner.CornerRadius = UDim.new(0, 12)
@@ -173,17 +169,18 @@ local function createKeySystem()
     btnCorner.Parent = submitBtn
 
     submitBtn.MouseButton1Click:Connect(function()
-        inputKey = textBox.Text
-        if inputKey == correctKey then
+        local textVal = textBox.Text
+        if textVal == correctKey then
+            inputKey = textVal
             submitBtn.Text = "УСПЕШНО!"
             submitBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-            wait(0.5)
-            blurEffect:Destroy()
-            keyGui:Destroy()
+            task.wait(0.5)
+            pcall(function() blurEffect:Destroy() end)
+            pcall(function() keyGui:Destroy() end)
         else
             submitBtn.Text = "НЕВЕРНЫЙ КЛЮЧ"
             submitBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-            wait(1)
+            task.wait(1)
             submitBtn.Text = "АКТИВИРОВАТЬ"
             submitBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
         end
@@ -198,12 +195,12 @@ coroutine.wrap(function()
         "Подготовка интерфейса...",
         "Почти готово..."
     }
-    for i, text in ipairs(steps) do
-        wait(0.2)
+    for _, text in ipairs(steps) do
+        task.wait(0.2)
         loadingText.Text = text
     end
-    wait(0.3)
-    loadingGui:Destroy()
+    task.wait(0.3)
+    pcall(function() loadingGui:Destroy() end)
     createKeySystem()
 end)()
 
@@ -225,7 +222,6 @@ local localPlayer = players.LocalPlayer
 local camera = workspace.CurrentCamera
 local runService = game:GetService("RunService")
 local uis = game:GetService("UserInputService")
-local lighting = game:GetService("Lighting")
 
 -- Настройки
 local settings = {
@@ -289,6 +285,7 @@ local settings = {
 local gui = Instance.new("ScreenGui")
 gui.Name = "Nixware_Style_Menu_Mobile"
 gui.Parent = game.CoreGui
+gui.DisplayOrder = 99997
 
 -- Кнопка открытия меню для мобилок
 local openMenuBtn = Instance.new("TextButton")
@@ -547,564 +544,6 @@ createSlider(contentFrames["Visuals"], "Custom FOV", "customFOV", 70, 120, 130, 
 runService.Heartbeat:Connect(function()
     watermark.Visible = settings.visuals.watermark
     
-    -- Проверка активности аимбота (сочетание бинда или удерживания мобильной кнопки)
-    local isAiming = settings.aimbot.enabled and (uis:IsKeyDown(settings.aimbot.keybind) or settings.aimbot.mobileHold)
-    if isAiming then
-        local closestPlayer, closestDist = nil, settings.aimbot.fov
-        local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-        
-        for _, player in pairs(players:GetPlayers()) do
-            if player ~= localPlayer and player.Character and player.Character:FindFirstChild(settings.aimbot.targetPart) then
-        -- Ключ-система с улучшенным дизайном (Адаптировано под Mobile)
-local correctKey = "123"
-local inputKey = ""
-
--- Анимация загрузки
-local loadingGui = Instance.new("ScreenGui")
-loadingGui.Name = "LoadingGUI"
-loadingGui.Parent = game.CoreGui
-
-local loadingFrame = Instance.new("Frame")
-loadingFrame.Size = UDim2.new(0.8, 0, 0.25, 0)
-loadingFrame.Position = UDim2.new(0.1, 0, 0.375, 0)
-loadingFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-loadingFrame.BackgroundTransparency = 0.2
-loadingFrame.BorderSizePixel = 0
-loadingFrame.Parent = loadingGui
-
-local loadingCorner = Instance.new("UICorner")
-loadingCorner.CornerRadius = UDim.new(0, 12)
-loadingCorner.Parent = loadingFrame
-
--- Эффект стекла
-local glassEffect = Instance.new("Frame")
-glassEffect.Size = UDim2.new(1, 0, 1, 0)
-glassEffect.BackgroundTransparency = 0.95
-glassEffect.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-glassEffect.BorderSizePixel = 0
-glassEffect.Parent = loadingFrame
-
-local loadingTitle = Instance.new("TextLabel")
-loadingTitle.Text = "DEEPSEEK HACK v2.0 (MOBILE)"
-loadingTitle.Size = UDim2.new(1, 0, 0, 40)
-loadingTitle.Position = UDim2.new(0, 0, 0, 0)
-loadingTitle.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-loadingTitle.TextColor3 = Color3.new(1, 1, 1)
-loadingTitle.Font = Enum.Font.GothamBold
-loadingTitle.TextSize = 18
-loadingTitle.BorderSizePixel = 0
-loadingTitle.Parent = loadingFrame
-
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12, 0, 0)
-titleCorner.Parent = loadingTitle
-
-local loadingIcon = Instance.new("ImageLabel")
-loadingIcon.Size = UDim2.new(0, 50, 0, 50)
-loadingIcon.Position = UDim2.new(0.5, -25, 0.4, -25)
-loadingIcon.BackgroundTransparency = 1
-loadingIcon.Image = "rbxassetid://7072717162"
-loadingIcon.Parent = loadingFrame
-
-local loadingText = Instance.new("TextLabel")
-loadingText.Text = "Загрузка мобильного интерфейса..."
-loadingText.Size = UDim2.new(1, -20, 0, 20)
-loadingText.Position = UDim2.new(0, 10, 0.7, 0)
-loadingText.BackgroundTransparency = 1
-loadingText.TextColor3 = Color3.fromRGB(200, 200, 200)
-loadingText.Font = Enum.Font.Gotham
-loadingText.TextSize = 14
-loadingText.TextXAlignment = Enum.TextXAlignment.Center
-loadingText.Parent = loadingFrame
-
-local loadingBar = Instance.new("Frame")
-loadingBar.Size = UDim2.new(1, -20, 0, 4)
-loadingBar.Position = UDim2.new(0, 10, 0.85, 0)
-loadingBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-loadingBar.BorderSizePixel = 0
-loadingBar.Parent = loadingFrame
-
-local loadingBarFill = Instance.new("Frame")
-loadingBarFill.Size = UDim2.new(0, 0, 1, 0)
-loadingBarFill.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-loadingBarFill.BorderSizePixel = 0
-loadingBarFill.Parent = loadingBar
-
-local loadingTween = game:GetService("TweenService"):Create(
-    loadingBarFill,
-    TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-    {Size = UDim2.new(1, 0, 1, 0)}
-)
-loadingTween:Play()
-
--- Функция для создания ключ-системы
-local function createKeySystem()
-    local keyGui = Instance.new("ScreenGui")
-    keyGui.Name = "KeyInputGUI"
-    keyGui.Parent = game.CoreGui
-
-    local blurEffect = Instance.new("BlurEffect")
-    blurEffect.Size = 10
-    blurEffect.Parent = game:GetService("Lighting")
-
-    local mainContainer = Instance.new("Frame")
-    mainContainer.Size = UDim2.new(0.85, 0, 0.6, 0)
-    mainContainer.Position = UDim2.new(0.075, 0, 0.2, 0)
-    mainContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    mainContainer.BackgroundTransparency = 0.2
-    mainContainer.Parent = keyGui
-
-    game:GetService("TweenService"):Create(
-        mainContainer,
-        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        {Position = UDim2.new(0.075, 0, 0.2, 0)}
-    ):Play()
-
-    local containerCorner = Instance.new("UICorner")
-    containerCorner.CornerRadius = UDim.new(0, 12)
-    containerCorner.Parent = mainContainer
-
-    local logo = Instance.new("ImageLabel")
-    logo.Size = UDim2.new(0, 100, 0, 100)
-    logo.Position = UDim2.new(0.5, -50, 0.05, 0)
-    logo.BackgroundTransparency = 1
-    logo.Image = "rbxassetid://7072717162"
-    logo.Parent = mainContainer
-
-    local title = Instance.new("TextLabel")
-    title.Text = "DEEPSEEK HACK v2.0"
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Position = UDim2.new(0, 0, 0.4, 0)
-    title.BackgroundTransparency = 1
-    title.TextColor3 = Color3.fromRGB(255, 50, 50)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 20
-    title.Parent = mainContainer
-
-    local subtitle = Instance.new("TextLabel")
-    subtitle.Text = "MOBILE EDITION"
-    subtitle.Size = UDim2.new(1, 0, 0, 20)
-    subtitle.Position = UDim2.new(0, 0, 0.48, 0)
-    subtitle.BackgroundTransparency = 1
-    subtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
-    subtitle.Font = Enum.Font.Gotham
-    subtitle.TextSize = 12
-    subtitle.Parent = mainContainer
-
-    local inputFrame = Instance.new("Frame")
-    inputFrame.Size = UDim2.new(0.8, 0, 0, 45)
-    inputFrame.Position = UDim2.new(0.1, 0, 0.6, 0)
-    inputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    inputFrame.BorderSizePixel = 0
-    inputFrame.Parent = mainContainer
-
-    local inputCorner = Instance.new("UICorner")
-    inputCorner.CornerRadius = UDim.new(0, 6)
-    inputCorner.Parent = inputFrame
-
-    local textBox = Instance.new("TextBox")
-    textBox.Size = UDim2.new(1, -20, 1, 0)
-    textBox.Position = UDim2.new(0, 10, 0, 0)
-    textBox.PlaceholderText = "Введите ключ..."
-    textBox.Text = ""
-    textBox.ClearTextOnFocus = false
-    textBox.BackgroundTransparency = 1
-    textBox.TextColor3 = Color3.new(1, 1, 1)
-    textBox.Font = Enum.Font.Gotham
-    textBox.TextSize = 14
-    textBox.Parent = inputFrame
-
-    local submitBtn = Instance.new("TextButton")
-    submitBtn.Size = UDim2.new(0.6, 0, 0, 40)
-    submitBtn.Position = UDim2.new(0.2, 0, 0.8, 0)
-    submitBtn.Text = "АКТИВИРОВАТЬ"
-    submitBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    submitBtn.TextColor3 = Color3.new(1, 1, 1)
-    submitBtn.Font = Enum.Font.GothamBold
-    submitBtn.TextSize = 14
-    submitBtn.AutoButtonColor = false
-    submitBtn.Parent = mainContainer
-
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    btnCorner.Parent = submitBtn
-
-    submitBtn.MouseButton1Click:Connect(function()
-        inputKey = textBox.Text
-        if inputKey == correctKey then
-            submitBtn.Text = "УСПЕШНО!"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-            wait(0.5)
-            blurEffect:Destroy()
-            keyGui:Destroy()
-        else
-            submitBtn.Text = "НЕВЕРНЫЙ КЛЮЧ"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-            wait(1)
-            submitBtn.Text = "АКТИВИРОВАТЬ"
-            submitBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        end
-    end)
-end
-
-coroutine.wrap(function()
-    local steps = {
-        "Инициализация компонентов...",
-        "Оптимизация под Mobile...", 
-        "Настройка сенсоров...",
-        "Подготовка интерфейса...",
-        "Почти готово..."
-    }
-    for i, text in ipairs(steps) do
-        wait(0.2)
-        loadingText.Text = text
-    end
-    wait(0.3)
-    loadingGui:Destroy()
-    createKeySystem()
-end)()
-
-repeat task.wait() until inputKey ~= ""
-
-if inputKey ~= correctKey then
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "ОШИБКА",
-        Text = "Неверный ключ активации!",
-        Duration = 5,
-        Icon = "rbxassetid://11166503712"
-    })
-    return
-end
-
--- Сервисы
-local players = game:GetService("Players")
-local localPlayer = players.LocalPlayer
-local camera = workspace.CurrentCamera
-local runService = game:GetService("RunService")
-local uis = game:GetService("UserInputService")
-local lighting = game:GetService("Lighting")
-
--- Настройки
-local settings = {
-    esp = {
-        enabled = false,
-        color = Color3.fromRGB(255, 50, 50),
-        showName = false,
-        showHealth = false,
-        showWeapon = false,
-        showDistance = false,
-        showBox = false,
-        showTracers = false
-    },
-    aimbot = {
-        enabled = false,
-        fov = 160,
-        smoothness = 0.1,
-        targetPart = "Head",
-        keybind = Enum.KeyCode.LeftAlt,
-        mobileHold = false,
-        silentAim = false,
-        prediction = 0.1,
-        hitChance = 100,
-        autoShoot = false,
-        autoWall = false,
-        visibleCheck = false
-    },
-    movement = {
-        fly = false,
-        flySpeed = 50,
-        flyKey = Enum.KeyCode.F,
-        bunnyHop = false,
-        hopPower = 10,
-        spinBot = false,
-        spinSpeed = 20,
-        noClip = false,
-        speedHack = false,
-        speedMultiplier = 1.5,
-        antiAFK = false,
-        airJump = false,
-        spider = false
-    },
-    visuals = {
-        watermark = true,
-        skyColor = false,
-        skyColorValue = Color3.fromRGB(0, 150, 255),
-        ultraAttack = false,
-        attackKey = Enum.KeyCode.U,
-        thirdPerson = false,
-        fovChanger = false,
-        customFOV = 70,
-        headHitbox = false,
-        showFov = false,
-        customCrosshair = false,
-        chams = false,
-        neonEnemies = false
-    }
-}
-
--- GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "Nixware_Style_Menu_Mobile"
-gui.Parent = game.CoreGui
-
--- Кнопка открытия меню для мобилок
-local openMenuBtn = Instance.new("TextButton")
-openMenuBtn.Name = "OpenMenuButton"
-openMenuBtn.Size = UDim2.new(0, 50, 0, 50)
-openMenuBtn.Position = UDim2.new(0, 10, 0.4, 0)
-openMenuBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-openMenuBtn.Text = "MENU"
-openMenuBtn.TextColor3 = Color3.new(1, 1, 1)
-openMenuBtn.Font = Enum.Font.GothamBold
-openMenuBtn.TextSize = 12
-openMenuBtn.Parent = gui
-
-local openBtnCorner = Instance.new("UICorner")
-openBtnCorner.CornerRadius = UDim.new(1, 0)
-openBtnCorner.Parent = openMenuBtn
-
--- Мобильная кнопка Аимбота
-local mobileAimBtn = Instance.new("TextButton")
-mobileAimBtn.Name = "MobileAimButton"
-mobileAimBtn.Size = UDim2.new(0, 60, 0, 60)
-mobileAimBtn.Position = UDim2.new(0.8, 0, 0.5, 0)
-mobileAimBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-mobileAimBtn.Text = "AIM"
-mobileAimBtn.TextColor3 = Color3.new(1, 1, 1)
-mobileAimBtn.Font = Enum.Font.GothamBold
-mobileAimBtn.TextSize = 14
-mobileAimBtn.Visible = false
-mobileAimBtn.Parent = gui
-
-local aimBtnCorner = Instance.new("UICorner")
-aimBtnCorner.CornerRadius = UDim.new(1, 0)
-aimBtnCorner.Parent = mobileAimBtn
-
-mobileAimBtn.MouseButton1Down:Connect(function()
-    settings.aimbot.mobileHold = true
-end)
-
-mobileAimBtn.MouseButton1Up:Connect(function()
-    settings.aimbot.mobileHold = false
-end)
-
--- Водяной знак
-local watermark = Instance.new("Frame")
-watermark.Size = UDim2.new(0, 220, 0, 24)
-watermark.Position = UDim2.new(1, -230, 0, 10)
-watermark.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-watermark.BackgroundTransparency = 0.3
-watermark.BorderSizePixel = 0
-watermark.Parent = gui
-
-local watermarkText = Instance.new("TextLabel")
-watermarkText.Text = "DEEPSEEK MOBILE | "..localPlayer.Name
-watermarkText.Size = UDim2.new(1, -10, 1, 0)
-watermarkText.Position = UDim2.new(0, 5, 0, 0)
-watermarkText.BackgroundTransparency = 1
-watermarkText.TextColor3 = Color3.fromRGB(255, 255, 255)
-watermarkText.Font = Enum.Font.GothamBold
-watermarkText.TextSize = 10
-watermarkText.TextXAlignment = Enum.TextXAlignment.Left
-watermarkText.Parent = watermark
-
--- Основное Меню
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0.9, 0, 0.7, 0)
-mainFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-mainFrame.BorderSizePixel = 0
-mainFrame.Visible = false
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = gui
-
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 8)
-mainCorner.Parent = mainFrame
-
-openMenuBtn.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
-end)
-
-local title = Instance.new("TextLabel")
-title.Text = "DEEPSEEK HACK v2.0 (MOBILE)"
-title.Size = UDim2.new(1, 0, 0, 35)
-title.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-title.Parent = mainFrame
-
--- Вкладки
-local tabs = {"ESP", "Aimbot", "Movement", "Visuals"}
-local tabButtons = {}
-local contentFrames = {}
-
-for i, name in ipairs(tabs) do
-    local tabBtn = Instance.new("TextButton")
-    tabBtn.Text = name
-    tabBtn.Size = UDim2.new(0.25, 0, 0, 30)
-    tabBtn.Position = UDim2.new(0.25 * (i - 1), 0, 0, 35)
-    tabBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    tabBtn.TextColor3 = Color3.new(1, 1, 1)
-    tabBtn.Font = Enum.Font.GothamBold
-    tabBtn.TextSize = 12
-    tabBtn.Parent = mainFrame
-    tabButtons[name] = tabBtn
-
-    local contentScroll = Instance.new("ScrollingFrame")
-    contentScroll.Size = UDim2.new(1, -20, 1, -75)
-    contentScroll.Position = UDim2.new(0, 10, 0, 70)
-    contentScroll.BackgroundTransparency = 1
-    contentScroll.CanvasSize = UDim2.new(0, 0, 2, 0)
-    contentScroll.ScrollBarThickness = 4
-    contentScroll.Visible = (i == 1)
-    contentScroll.Parent = mainFrame
-    contentFrames[name] = contentScroll
-
-    tabBtn.MouseButton1Click:Connect(function()
-        for tName, frame in pairs(contentFrames) do
-            frame.Visible = (tName == name)
-        end
-        for tName, btn in pairs(tabButtons) do
-            btn.BackgroundColor3 = (tName == name) and Color3.fromRGB(255, 50, 50) or Color3.fromRGB(30, 30, 30)
-        end
-    end)
-end
-tabButtons["ESP"].BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-
--- Вспомогательные функции UI
-local function createToggle(parent, text, setting, yPos, category)
-    local toggleFrame = Instance.new("Frame")
-    toggleFrame.Size = UDim2.new(1, 0, 0, 35)
-    toggleFrame.Position = UDim2.new(0, 0, 0, yPos)
-    toggleFrame.BackgroundTransparency = 1
-    toggleFrame.Parent = parent
-    
-    local toggleText = Instance.new("TextLabel")
-    toggleText.Text = text
-    toggleText.Size = UDim2.new(0.65, 0, 1, 0)
-    toggleText.BackgroundTransparency = 1
-    toggleText.TextColor3 = Color3.new(1, 1, 1)
-    toggleText.Font = Enum.Font.Gotham
-    toggleText.TextSize = 12
-    toggleText.TextXAlignment = Enum.TextXAlignment.Left
-    toggleText.Parent = toggleFrame
-    
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(0, 50, 0, 25)
-    toggleBtn.Position = UDim2.new(1, -50, 0.5, -12)
-    toggleBtn.Text = settings[category][setting] and "ON" or "OFF"
-    toggleBtn.BackgroundColor3 = settings[category][setting] and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-    toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-    toggleBtn.Font = Enum.Font.GothamBold
-    toggleBtn.TextSize = 10
-    toggleBtn.Parent = toggleFrame
-
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 4)
-    btnCorner.Parent = toggleBtn
-    
-    toggleBtn.MouseButton1Click:Connect(function()
-        settings[category][setting] = not settings[category][setting]
-        toggleBtn.Text = settings[category][setting] and "ON" or "OFF"
-        toggleBtn.BackgroundColor3 = settings[category][setting] and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-        
-        if category == "aimbot" and setting == "enabled" then
-            mobileAimBtn.Visible = settings.aimbot.enabled
-        end
-    end)
-    return toggleBtn
-end
-
-local function createSlider(parent, text, setting, min, max, yPos, category)
-    local sliderFrame = Instance.new("Frame")
-    sliderFrame.Size = UDim2.new(1, 0, 0, 45)
-    sliderFrame.Position = UDim2.new(0, 0, 0, yPos)
-    sliderFrame.BackgroundTransparency = 1
-    sliderFrame.Parent = parent
-    
-    local sliderText = Instance.new("TextLabel")
-    sliderText.Text = text .. ": " .. tostring(settings[category][setting])
-    sliderText.Size = UDim2.new(1, 0, 0, 20)
-    sliderText.BackgroundTransparency = 1
-    sliderText.TextColor3 = Color3.new(1, 1, 1)
-    sliderText.Font = Enum.Font.Gotham
-    sliderText.TextSize = 12
-    sliderText.TextXAlignment = Enum.TextXAlignment.Left
-    sliderText.Parent = sliderFrame
-    
-    local sliderBar = Instance.new("Frame")
-    sliderBar.Size = UDim2.new(1, 0, 0, 6)
-    sliderBar.Position = UDim2.new(0, 0, 0, 25)
-    sliderBar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    sliderBar.Parent = sliderFrame
-    
-    local sliderFill = Instance.new("Frame")
-    sliderFill.Size = UDim2.new((settings[category][setting] - min) / (max - min), 0, 1, 0)
-    sliderFill.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    sliderFill.Parent = sliderBar
-    
-    local dragging = false
-    local function updateValue(input)
-        local percent = math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
-        local value = math.floor(min + (max - min) * percent)
-        settings[category][setting] = value
-        sliderText.Text = text .. ": " .. tostring(value)
-        sliderFill.Size = UDim2.new(percent, 0, 1, 0)
-    end
-
-    sliderBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            updateValue(input)
-        end
-    end)
-    uis.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-    uis.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            updateValue(input)
-        end
-    end)
-end
-
--- Заполнение вкладок
-createToggle(contentFrames["ESP"], "ESP", "enabled", 10, "esp")
-createToggle(contentFrames["ESP"], "Show Names", "showName", 50, "esp")
-createToggle(contentFrames["ESP"], "Show Health", "showHealth", 90, "esp")
-createToggle(contentFrames["ESP"], "Show Weapons", "showWeapon", 130, "esp")
-createToggle(contentFrames["ESP"], "Show Distance", "showDistance", 170, "esp")
-createToggle(contentFrames["ESP"], "Box ESP", "showBox", 210, "esp")
-createToggle(contentFrames["ESP"], "Tracers", "showTracers", 250, "esp")
-
-createToggle(contentFrames["Aimbot"], "Aimbot", "enabled", 10, "aimbot")
-createSlider(contentFrames["Aimbot"], "FOV", "fov", 10, 360, 50, "aimbot")
-createSlider(contentFrames["Aimbot"], "Smoothness", "smoothness", 0.01, 1, 100, "aimbot")
-createToggle(contentFrames["Aimbot"], "Silent Aim", "silentAim", 150, "aimbot")
-createToggle(contentFrames["Aimbot"], "Auto Shoot", "autoShoot", 190, "aimbot")
-createToggle(contentFrames["Aimbot"], "Visible Check", "visibleCheck", 230, "aimbot")
-
-createToggle(contentFrames["Movement"], "Fly", "fly", 10, "movement")
-createSlider(contentFrames["Movement"], "Fly Speed", "flySpeed", 10, 100, 50, "movement")
-createToggle(contentFrames["Movement"], "Bunny Hop", "bunnyHop", 100, "movement")
-createToggle(contentFrames["Movement"], "NoClip", "noClip", 140, "movement")
-createToggle(contentFrames["Movement"], "Speed Hack", "speedHack", 180, "movement")
-
-createToggle(contentFrames["Visuals"], "Watermark", "watermark", 10, "visuals")
-createToggle(contentFrames["Visuals"], "Third Person", "thirdPerson", 50, "visuals")
-createToggle(contentFrames["Visuals"], "FOV Changer", "fovChanger", 90, "visuals")
-createSlider(contentFrames["Visuals"], "Custom FOV", "customFOV", 70, 120, 130, "visuals")
-
--- Основная логика Aimbot & Loop
-runService.Heartbeat:Connect(function()
-    watermark.Visible = settings.visuals.watermark
-    
-    -- Проверка активности аимбота (сочетание бинда или удерживания мобильной кнопки)
     local isAiming = settings.aimbot.enabled and (uis:IsKeyDown(settings.aimbot.keybind) or settings.aimbot.mobileHold)
     if isAiming then
         local closestPlayer, closestDist = nil, settings.aimbot.fov
@@ -1113,32 +552,6 @@ runService.Heartbeat:Connect(function()
         for _, player in pairs(players:GetPlayers()) do
             if player ~= localPlayer and player.Character and player.Character:FindFirstChild(settings.aimbot.targetPart) then
                 local part = player.Character[settings.aimbot.targetPart]
-                local pos, onScreen = camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                    if dist < closestDist then
-                        closestPlayer = player
-                        closestDist = dist
-                    end
-                end
-            end
-        end
-        
-        if closestPlayer and closestPlayer.Character then
-            local targetPos = closestPlayer.Character[settings.aimbot.targetPart].Position
-            camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPos), settings.aimbot.smoothness)
-        end
-    end
-end)
-
--- Уведомление
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "DEEPSEEK MOBILE",
-    Text = "Успешно активировано!\nНажмите кнопку MENU слева для открытия.",
-    Duration = 5
-})
-
-loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()         local part = player.Character[settings.aimbot.targetPart]
                 local pos, onScreen = camera:WorldToViewportPoint(part.Position)
                 if onScreen then
                     local dist = (Vector2.new(pos.X, pos.Y) - center).Magnitude
