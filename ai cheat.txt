@@ -1,4 +1,4 @@
--- COCITESCRIPT | Fixed & Clean Hub
+-- COCITESCRIPT | Modern Clean Mobile Hub
 if _G.CociteRunning then
     print("COCITESCRIPT уже запущен!")
     return
@@ -12,206 +12,198 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local Settings = {
-    Aimbot = {
-        Enabled = false,
-        LockedTarget = nil,
-    },
-    BulletTP = {
-        Enabled = false
-    },
-    Noclip = {
-        Enabled = false
-    },
-    ESP = {
-        Enabled = false,
-        Boxes = {},
-        Names = {}
-    }
+    Aimbot = { Enabled = false, Target = nil },
+    BulletTP = { Enabled = false },
+    Noclip = { Enabled = false },
+    ESP = { Enabled = false, Boxes = {}, Names = {} }
 }
 
 -------------------------------------------------------------------
--- 1. ОКНО АВТОРИЗАЦИИ
+-- 1. СОВЕРШЕННО НОВЫЙ ДИЗАЙН ОКНА ВХОДА
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CociteHubGui"
+ScreenGui.Name = "CociteModernGui"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
-local AuthFrame = Instance.new("Frame", ScreenGui)
-AuthFrame.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
-AuthFrame.Position = UDim2.new(0.5, -140, 0.5, -85)
-AuthFrame.Size = UDim2.new(0, 280, 0, 170)
-AuthFrame.Active = true
-AuthFrame.Draggable = true
-Instance.new("UICorner", AuthFrame).CornerRadius = UDim.new(0, 10)
+local AuthCard = Instance.new("Frame", ScreenGui)
+AuthCard.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+AuthCard.Position = UDim2.new(0.5, -150, 0.5, -100)
+AuthCard.Size = UDim2.new(0, 300, 0, 200)
+AuthCard.Active = true
+AuthCard.Draggable = true
+Instance.new("UICorner", AuthCard).CornerRadius = UDim.new(0, 16)
 
-local AuthStroke = Instance.new("UIStroke", AuthFrame)
-AuthStroke.Color = Color3.fromRGB(100, 30, 180)
-AuthStroke.Thickness = 2
+local AuthStroke = Instance.new("UIStroke", AuthCard)
+AuthStroke.Color = Color3.fromRGB(80, 70, 140)
+AuthStroke.Thickness = 1.5
 
-local AuthTitle = Instance.new("TextLabel", AuthFrame)
-AuthTitle.BackgroundTransparency = 1
-AuthTitle.Size = UDim2.new(1, 0, 0, 40)
-AuthTitle.Font = Enum.Font.GothamBold
-AuthTitle.Text = "⚡ COCITESCRIPT LOGIN ⚡"
-AuthTitle.TextColor3 = Color3.fromRGB(180, 130, 255)
-AuthTitle.TextSize, AuthTitle.TextXAlignment = 13, Enum.TextXAlignment.Center
+local AuthHeader = Instance.new("TextLabel", AuthCard)
+AuthHeader.BackgroundTransparency = 1
+AuthHeader.Position = UDim2.new(0, 0, 0, 20)
+AuthHeader.Size = UDim2.new(1, 0, 0, 30)
+AuthHeader.Font = Enum.Font.GothamBold
+AuthHeader.Text = "COCITE AUTHORIZATION"
+AuthHeader.TextColor3 = Color3.fromRGB(220, 220, 255)
+AuthHeader.TextSize = 14
 
-local TextBox = Instance.new("TextBox", AuthFrame)
-TextBox.BackgroundColor3 = Color3.fromRGB(18, 14, 25)
-TextBox.Position = UDim2.new(0, 20, 0, 50)
-TextBox.Size = UDim2.new(0, 240, 0, 40)
-TextBox.Font = Enum.Font.Gotham
-TextBox.PlaceholderText = "Пароль (123)..."
-TextBox.Text = ""
-TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.TextSize = 13
-Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 6)
+local PassBox = Instance.new("TextBox", AuthCard)
+PassBox.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+PassBox.Position = UDim2.new(0, 25, 0, 70)
+PassBox.Size = UDim2.new(0, 250, 0, 45)
+PassBox.Font = Enum.Font.Gotham
+PassBox.PlaceholderText = "Введите пароль (123)..."
+PassBox.Text = ""
+PassBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+PassBox.TextSize = 13
+Instance.new("UICorner", PassBox).CornerRadius = UDim.new(0, 10)
 
-local LoginBtn = Instance.new("TextButton", AuthFrame)
-LoginBtn.BackgroundColor3 = Color3.fromRGB(80, 20, 140)
-LoginBtn.Position = UDim2.new(0, 20, 0, 105)
-LoginBtn.Size = UDim2.new(0, 240, 0, 40)
-LoginBtn.Font = Enum.Font.GothamBold
-LoginBtn.Text = "ВОЙТИ"
-LoginBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-LoginBtn.TextSize = 13
-Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 6)
+local EnterBtn = Instance.new("TextButton", AuthCard)
+EnterBtn.BackgroundColor3 = Color3.fromRGB(90, 60, 200)
+EnterBtn.Position = UDim2.new(0, 25, 0, 130)
+EnterBtn.Size = UDim2.new(0, 250, 0, 45)
+EnterBtn.Font = Enum.Font.GothamBold
+EnterBtn.Text = "ПОДТВЕРДИТЬ"
+EnterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+EnterBtn.TextSize = 13
+Instance.new("UICorner", EnterBtn).CornerRadius = UDim.new(0, 10)
 
 -------------------------------------------------------------------
--- 2. НОВОЕ СТИЛЬНОЕ МЕНЮ (ДРУГОЙ ДИЗАЙН)
+-- 2. НОВЫЙ ВИД ГЛАВНОГО МЕНЮ (СТИЛЬНЫЙ И НЕПОХОЖИЙ НА СТАРЫЙ)
 -------------------------------------------------------------------
-local ToggleButton = Instance.new("ImageButton", ScreenGui)
-ToggleButton.Name = "CociteToggleBtn"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 12, 22)
-ToggleButton.Position = UDim2.new(0, 20, 0.3, 0)
-ToggleButton.Size = UDim2.new(0, 46, 0, 46)
-ToggleButton.Visible = false
-ToggleButton.Active = true
-ToggleButton.Draggable = true
-ToggleButton.Image = "rbxassetid://6034287592"
-Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
+local ToggleBtn = Instance.new("ImageButton", ScreenGui)
+ToggleBtn.Name = "CociteToggle"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+ToggleBtn.Position = UDim2.new(0, 20, 0.3, 0)
+ToggleBtn.Size = UDim2.new(0, 48, 0, 48)
+ToggleBtn.Visible = false
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+ToggleBtn.Image = "rbxassetid://6034287592"
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(1, 0)
 
-local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Name = "MainFrame"
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
-MainFrame.Position = UDim2.new(0.5, -160, 0.5, -150)
-MainFrame.Size = UDim2.new(0, 320, 0, 290)
-MainFrame.Visible = false
-MainFrame.Active = true
-MainFrame.Draggable = true
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+local MainHub = Instance.new("Frame", ScreenGui)
+MainHub.Name = "CociteMain"
+MainHub.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+MainHub.Position = UDim2.new(0.5, -175, 0.5, -170)
+MainHub.Size = UDim2.new(0, 350, 0, 340)
+MainHub.Visible = false
+MainHub.Active = true
+MainHub.Draggable = true
+Instance.new("UICorner", MainHub).CornerRadius = UDim.new(0, 16)
 
-local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(100, 30, 180)
-MainStroke.Thickness = 2
+local HubStroke = Instance.new("UIStroke", MainHub)
+HubStroke.Color = Color3.fromRGB(90, 70, 160)
+HubStroke.Thickness = 1.5
 
--- Верхняя панелька
-local TopBar = Instance.new("Frame", MainFrame)
-TopBar.BackgroundColor3 = Color3.fromRGB(18, 14, 25)
-TopBar.Size = UDim2.new(1, 0, 0, 38)
-Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 12)
+-- Шапка нового меню
+local TopLine = Instance.new("Frame", MainHub)
+TopLine.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+TopLine.Size = UDim2.new(1, 0, 0, 45)
+Instance.new("UICorner", TopLine).CornerRadius = UDim.new(0, 16)
 
-local HubTitle = Instance.new("TextLabel", TopBar)
+local HubTitle = Instance.new("TextLabel", TopLine)
 HubTitle.BackgroundTransparency = 1
-HubTitle.Position = UDim2.new(0, 12, 0, 0)
-HubTitle.Size = UDim2.new(1, -12, 1, 0)
+HubTitle.Position = UDim2.new(0, 18, 0, 0)
+HubTitle.Size = UDim2.new(1, -18, 1, 0)
 HubTitle.Font = Enum.Font.GothamBold
-HubTitle.Text = "⚡ COCITE HUB (NEW) ⚡"
-HubTitle.TextColor3 = Color3.fromRGB(180, 130, 255)
+HubTitle.Text = "COCITE HUB // MOBILE EDITION"
+HubTitle.TextColor3 = Color3.fromRGB(200, 180, 255)
 HubTitle.TextSize = 13
 HubTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-local CloseBtn = Instance.new("TextButton", TopBar)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
-CloseBtn.Position = UDim2.new(1, -32, 0.5, -11)
-CloseBtn.Size = UDim2.new(0, 22, 0, 22)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 11
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
+local ExitBtn = Instance.new("TextButton", TopLine)
+ExitBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+ExitBtn.Position = UDim2.new(1, -38, 0.5, -12)
+ExitBtn.Size = UDim2.new(0, 24, 0, 24)
+ExitBtn.Font = Enum.Font.GothamBold
+ExitBtn.Text = "×"
+ExitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ExitBtn.TextSize = 14
+Instance.new("UICorner", ExitBtn).CornerRadius = UDim.new(0, 6)
 
-CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
-ToggleButton.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+ExitBtn.MouseButton1Click:Connect(function() MainHub.Visible = false end)
+ToggleBtn.MouseButton1Click:Connect(function() MainHub.Visible = not MainHub.Visible end)
 
-LoginBtn.MouseButton1Click:Connect(function()
-    if TextBox.Text == "123" then
-        AuthFrame:Destroy()
-        ToggleButton.Visible = true
-        MainFrame.Visible = true
+EnterBtn.MouseButton1Click:Connect(function()
+    if PassBox.Text == "123" then
+        AuthCard:Destroy()
+        ToggleBtn.Visible = true
+        MainHub.Visible = true
     else
-        TextBox.Text = ""
-        TextBox.PlaceholderText = "НЕВЕРНЫЙ ПАРОЛЬ!"
+        PassBox.Text = ""
+        PassBox.PlaceholderText = "НЕВЕРНЫЙ ПАРОЛЬ!"
     end
 end)
 
 -------------------------------------------------------------------
--- 3. ПЛАВАЮЩАЯ КНОПКА АИМА
+-- 3. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ПЛАВАЮЩИЙ АИМ
 -------------------------------------------------------------------
-local AimFloatBtn = Instance.new("TextButton", ScreenGui)
-AimFloatBtn.Name = "CociteAimButton"
-AimFloatBtn.BackgroundColor3 = Color3.fromRGB(18, 14, 25)
-AimFloatBtn.Position = UDim2.new(0.8, 0, 0.4, 0)
-AimFloatBtn.Size = UDim2.new(0, 90, 0, 40)
-AimFloatBtn.Font = Enum.Font.GothamBold
-AimFloatBtn.Text = "AIM LOCK"
-AimFloatBtn.TextColor3 = Color3.fromRGB(180, 130, 255)
-AimFloatBtn.TextSize = 11
-AimFloatBtn.Visible = false
-AimFloatBtn.Active = true
-AimFloatBtn.Draggable = true
-Instance.new("UICorner", AimFloatBtn).CornerRadius = UDim.new(0, 6)
+local AimFloat = Instance.new("TextButton", ScreenGui)
+AimFloat.Name = "CociteAimFloat"
+AimFloat.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+AimFloat.Position = UDim2.new(0.8, 0, 0.4, 0)
+AimFloat.Size = UDim2.new(0, 95, 0, 38)
+AimFloat.Font = Enum.Font.GothamBold
+AimFloat.Text = "AIM: OFF"
+AimFloat.TextColor3 = Color3.fromRGB(180, 180, 200)
+AimFloat.TextSize = 11
+AimFloat.Visible = false
+AimFloat.Active = true
+AimFloat.Draggable = true
+Instance.new("UICorner", AimFloat).CornerRadius = UDim.new(0, 8)
 
 local function GetClosestTarget()
-    local closestP = nil
-    local shortestDist = math.huge
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local part = player.Character:FindFirstChild("Head")
-            if part then
-                local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+    local closest, shortest = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+            local head = p.Character:FindFirstChild("Head")
+            if head then
+                local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 if onScreen then
-                    local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
-                    if magnitude < shortestDist then
-                        shortestDist = magnitude
-                        closestP = player
+                    local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                    if dist < shortest then
+                        shortest = dist
+                        closest = p
                     end
                 end
             end
         end
     end
-    return closestP
+    return closest
 end
 
 local AimActive = false
-AimFloatBtn.MouseButton1Click:Connect(function()
+AimFloat.MouseButton1Click:Connect(function()
     AimActive = not AimActive
     if AimActive then
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(100, 25, 180)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Settings.Aimbot.LockedTarget = GetClosestTarget()
+        AimFloat.BackgroundColor3 = Color3.fromRGB(90, 60, 200)
+        AimFloat.TextColor3 = Color3.fromRGB(255, 255, 255)
+        AimFloat.Text = "AIM: ON"
+        Settings.Aimbot.Target = GetClosestTarget()
     else
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(18, 14, 25)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(180, 130, 255)
-        Settings.Aimbot.LockedTarget = nil
+        AimFloat.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+        AimFloat.TextColor3 = Color3.fromRGB(180, 180, 200)
+        AimFloat.Text = "AIM: OFF"
+        Settings.Aimbot.Target = nil
     end
 end)
 
 -------------------------------------------------------------------
--- 4. ЛОГИКА ФУНКЦИЙ
+-- 4. ЛОГИКА ЧИТОВ (RENDERSTEPPED)
 -------------------------------------------------------------------
 RunService.RenderStepped:Connect(function()
+    -- Aimbot Lock
     if Settings.Aimbot.Enabled and AimActive then
-        local target = Settings.Aimbot.LockedTarget
+        local target = Settings.Aimbot.Target
         if target and target.Character and target.Character:FindFirstChild("Head") and target.Character.Humanoid.Health > 0 then
             Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
         else
-            Settings.Aimbot.LockedTarget = GetClosestTarget()
+            Settings.Aimbot.Target = GetClosestTarget()
         end
     end
     
-    -- Безопасный Bullet TP к ближайшему врагу
+    -- Bullet TP (Перенос патрона/хендла к врагу)
     if Settings.BulletTP.Enabled then
         pcall(function()
             local target = GetClosestTarget()
@@ -226,6 +218,7 @@ RunService.RenderStepped:Connect(function()
         end)
     end
     
+    -- Noclip
     if Settings.Noclip.Enabled and LocalPlayer.Character then
         for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
@@ -234,32 +227,32 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- 5. КНОПКИ В МЕНЮ
+-- 5. СОЗДАНИЕ КНОПОК МЕНЮ
 -------------------------------------------------------------------
-local function CreateButton(name, posY, callback)
-    local btn = Instance.new("TextButton", MainFrame)
-    btn.BackgroundColor3 = Color3.fromRGB(18, 14, 25)
-    btn.Position = UDim2.new(0, 15, 0, posY)
-    btn.Size = UDim2.new(0, 290, 0, 42)
-    btn.Font = Enum.Font.GothamSemibold
-    btn.Text = name .. ": OFF"
-    btn.TextColor3 = Color3.fromRGB(170, 170, 170)
-    btn.TextSize = 12
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+local function CreateNewButton(text, posY, callback)
+    local btn = Instance.new("TextButton", MainHub)
+    btn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+    btn.Position = UDim2.new(0, 20, 0, posY)
+    btn.Size = UDim2.new(0, 310, 0, 46)
+    btn.Font = Enum.Font.GothamMedium
+    btn.Text = text .. " [OFF]"
+    btn.TextColor3 = Color3.fromRGB(170, 170, 190)
+    btn.TextSize = 13
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     
-    local active = false
+    local state = false
     btn.MouseButton1Click:Connect(function()
-        active = not active
-        if active then
-            btn.BackgroundColor3 = Color3.fromRGB(90, 20, 160)
+        state = not state
+        if state then
+            btn.BackgroundColor3 = Color3.fromRGB(80, 50, 180)
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.Text = name .. ": ON"
+            btn.Text = text .. " [ON]"
         else
-            btn.BackgroundColor3 = Color3.fromRGB(18, 14, 25)
-            btn.TextColor3 = Color3.fromRGB(170, 170, 170)
-            btn.Text = name .. ": OFF"
+            btn.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+            btn.TextColor3 = Color3.fromRGB(170, 170, 190)
+            btn.Text = text .. " [OFF]"
         end
-        callback(active)
+        callback(state)
     end)
     return btn
 end
@@ -279,32 +272,32 @@ end
 
 RunService.RenderStepped:Connect(function()
     if not Settings.ESP.Enabled then return end
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local hrp = player.Character.HumanoidRootPart
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+            local hrp = p.Character.HumanoidRootPart
             local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
             
-            if not Settings.ESP.Boxes[player] then
+            if not Settings.ESP.Boxes[p] then
                 local box = Drawing.new("Square")
                 box.Visible = false
-                box.Color = Color3.fromRGB(160, 40, 240)
+                box.Color = Color3.fromRGB(150, 100, 255)
                 box.Thickness = 1.5
                 box.Filled = false
-                Settings.ESP.Boxes[player] = box
+                Settings.ESP.Boxes[p] = box
             end
             
-            if not Settings.ESP.Names[player] then
-                local nameText = Drawing.new("Text")
-                nameText.Visible = false
-                nameText.Color = Color3.fromRGB(255, 255, 255)
-                nameText.Size = 12
-                nameText.Center = true
-                nameText.Outline = true
-                Settings.ESP.Names[player] = nameText
+            if not Settings.ESP.Names[p] then
+                local txt = Drawing.new("Text")
+                txt.Visible = false
+                txt.Color = Color3.fromRGB(255, 255, 255)
+                txt.Size = 12
+                txt.Center = true
+                txt.Outline = true
+                Settings.ESP.Names[p] = txt
             end
             
-            local box = Settings.ESP.Boxes[player]
-            local nameText = Settings.ESP.Names[player]
+            local box = Settings.ESP.Boxes[p]
+            local txt = Settings.ESP.Names[p]
             
             if onScreen then
                 local size = Vector3.new(2, 3, 0) * (300 / pos.Z)
@@ -312,36 +305,37 @@ RunService.RenderStepped:Connect(function()
                 box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
                 box.Visible = true
                 
-                nameText.Text = player.Name
-                nameText.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 16)
-                nameText.Visible = true
+                txt.Text = p.Name
+                txt.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 16)
+                txt.Visible = true
             else
                 box.Visible = false
-                nameText.Visible = false
+                txt.Visible = false
             end
         else
-            if Settings.ESP.Boxes[player] then Settings.ESP.Boxes[player].Visible = false end
-            if Settings.ESP.Names[player] then Settings.ESP.Names[player].Visible = false end
+            if Settings.ESP.Boxes[p] then Settings.ESP.Boxes[p].Visible = false end
+            if Settings.ESP.Names[p] then Settings.ESP.Names[p].Visible = false end
         end
     end
 end)
 
 -------------------------------------------------------------------
--- ИНИЦИАЛИЗАЦИЯ КНОПОК
+-- ИНИЦИАЛИЗАЦИЯ КНОПОК В НОВОМ МЕНЮ
 -------------------------------------------------------------------
-CreateButton("Aimbot", 50, function(state) 
+CreateNewButton("Aimbot", 60, function(state)
     Settings.Aimbot.Enabled = state
-    AimFloatBtn.Visible = state
-    if not state then 
+    AimFloat.Visible = state
+    if not state then
         AimActive = false
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(18, 14, 25)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(180, 130, 255)
-        Settings.Aimbot.LockedTarget = nil
+        AimFloat.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+        AimFloat.TextColor3 = Color3.fromRGB(180, 180, 200)
+        AimFloat.Text = "AIM: OFF"
+        Settings.Aimbot.Target = nil
     end
 end)
 
-CreateButton("Bullet TP", 100, function(state) Settings.BulletTP.Enabled = state end)
-CreateButton("ESP (Boxes + Names)", 150, function(state) ToggleESP(state) end)
-CreateButton("Noclip", 200, function(state) Settings.Noclip.Enabled = state end)
+CreateNewButton("Bullet TP", 115, function(state) Settings.BulletTP.Enabled = state end)
+CreateNewButton("ESP (Boxes + Names)", 170, function(state) ToggleESP(state) end)
+CreateNewButton("Noclip", 225, function(state) Settings.Noclip.Enabled = state end)
 
-print("Cocite Hub загружен без палева!")
+print("Cocite Hub (Clean Edition) успешно запущен!")
