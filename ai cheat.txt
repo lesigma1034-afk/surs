@@ -281,6 +281,32 @@ local settings = {
     }
 }
 
+-- Хранилища для отрисовки ESP
+local espObjects = {}
+
+local function removeEsp(player)
+    if espObjects[player] then
+        for _, obj in pairs(espObjects[player]) do
+            if obj and obj.Remove then
+                obj:Remove()
+            end
+        end
+        espObjects[player] = nil
+    end
+end
+
+for _, p in pairs(players:GetPlayers()) do
+    if p ~= localPlayer then
+        p.CharacterRemoving:Connect(function()
+            removeEsp(p)
+        end)
+    end
+end
+
+players.PlayerRemoving:Connect(function(p)
+    removeEsp(p)
+end)
+
 -- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "Nixware_Style_Menu_Mobile"
@@ -397,7 +423,7 @@ for i, name in ipairs(tabs) do
     contentScroll.Size = UDim2.new(1, -20, 1, -75)
     contentScroll.Position = UDim2.new(0, 10, 0, 70)
     contentScroll.BackgroundTransparency = 1
-    contentScroll.CanvasSize = UDim2.new(0, 0, 2, 0)
+    contentScroll.CanvasSize = UDim2.new(0, 0, 0, 350)
     contentScroll.ScrollBarThickness = 4
     contentScroll.Visible = (i == 1)
     contentScroll.Parent = mainFrame
@@ -489,7 +515,7 @@ local function createSlider(parent, text, setting, min, max, yPos, category)
     local dragging = false
     local function updateValue(input)
         local percent = math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
-        local value = math.floor(min + (max - min) * percent)
+        local value = math.floor(min + (max - min) * percent + 0.5)
         settings[category][setting] = value
         sliderText.Text = text .. ": " .. tostring(value)
         sliderFill.Size = UDim2.new(percent, 0, 1, 0)
@@ -540,10 +566,130 @@ createToggle(contentFrames["Visuals"], "Third Person", "thirdPerson", 50, "visua
 createToggle(contentFrames["Visuals"], "FOV Changer", "fovChanger", 90, "visuals")
 createSlider(contentFrames["Visuals"], "Custom FOV", "customFOV", 70, 120, 130, "visuals")
 
--- Основная логика Aimbot & Loop
+-- Основная логика читов (ESP, Aimbot, Movement, Visuals)
 runService.Heartbeat:Connect(function()
     watermark.Visible = settings.visuals.watermark
     
+    -- 1. FOV Changer & Third Person
+    if settings.visuals.fovChanger then
+        camera.FieldOfView = settings.visuals.customFOV
+    end
+    if settings.visuals.thirdPerson then
+        localPlayer.CameraMode = Enum.CameraMode.Classic
+        if localPlayer.Character and localPlayer.Character:FindFirstChild("Humanoid") then
+            if localPlayer.CameraMaxZoomDistance < 10 then
+                localPlayer.CameraMaxZoomDistance = 15
+            end
+        end
+    end
+
+    -- 2. Movement Hacks (Fly, NoClip, SpeedHack, BunnyHop)
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+        local hrp = char.HumanoidRootPart
+        local hum = char.Humanoid
+
+        if settings.movement.noClip then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+
+        if settings.movement.speedHack then
+            hum.WalkSpeed = 16 * settings.movement.speedMultiplier
+        end
+
+        if settings.movement.bunnyHop and hum.FloorMaterial ~= Enum.Material.Air then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+
+        if settings.movement.fly then
+            local vel = hrp.AssemblyLinearVelocity
+            hrp.AssemblyLinearVelocity = Vector3.new(vel.X, 0, vel.Z)
+            local moveDir = hum.MoveDirection
+            if moveDir.Magnitude > 0 then
+                hrp.CFrame = hrp.CFrame + (moveDir * (settings.movement.flySpeed / 50))
+            end
+        end
+    end
+
+    -- 3. ESP Logic
+    for _, player in pairs(players:GetPlayers()) do
+        if player ~= localPlayer then
+            local pChar = player.Character
+            if settings.esp.enabled and pChar and pChar:FindFirstChild("HumanoidRootPart") then
+                if not espObjects[player] then
+                    espObjects[player] = {
+                        Box = Drawing.new("Square"),
+                        Name = Drawing.new("Text"),
+                        Tracers = Drawing.new("Line")
+                    }
+                    espObjects[player].Box.Visible = false
+                    espObjects[player].Box.Thickness = 1.5
+                    espObjects[player].Box.Color = settings.esp.color
+
+                    espObjects[player].Name.Visible = false
+                    espObjects[player].Name.Size = 14
+                    espObjects[player].Name.Center = true
+                    espObjects[player].Name.Outline = true
+                    espObjects[player].Name.Color = Color3.new(1, 1, 1)
+
+                    espObjects[player].Tracers.Visible = false
+                    espObjects[player].Tracers.Thickness = 1
+                    espObjects[player].Tracers.Color = settings.esp.color
+                end
+
+                local box = espObjects[player].Box
+                local nameText = espObjects[player].Name
+                local tracer = espObjects[player].Tracers
+
+                local rootPart = pChar.HumanoidRootPart
+                local head = pChar:FindFirstChild("Head")
+                local vector, onScreen = camera:WorldToViewportPoint(rootPart.Position)
+
+                if onScreen then
+                    local headVector = head and camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0)) or vector
+                    local legVector = camera:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3, 0))
+                    local height = math.abs(headVector.Y - legVector.Y)
+                    local width = height / 2
+
+                    if settings.esp.showBox then
+                        box.Size = Vector2.new(width, height)
+                        box.Position = Vector2.new(vector.X - width / 2, headVector.Y)
+                        box.Visible = true
+                    else
+                        box.Visible = false
+                    end
+
+                    if settings.esp.showName then
+                        nameText.Text = player.Name
+                        nameText.Position = Vector2.new(vector.X, headVector.Y - 18)
+                        nameText.Visible = true
+                    else
+                        nameText.Visible = false
+                    end
+
+                    if settings.esp.showTracers then
+                        tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                        tracer.To = Vector2.new(vector.X, legVector.Y)
+                        tracer.Visible = true
+                    else
+                        tracer.Visible = false
+                    end
+                else
+                    box.Visible = false
+                    nameText.Visible = false
+                    tracer.Visible = false
+                end
+            else
+                removeEsp(player)
+            end
+        end
+    end
+
+    -- 4. Aimbot Logic
     local isAiming = settings.aimbot.enabled and (uis:IsKeyDown(settings.aimbot.keybind) or settings.aimbot.mobileHold)
     if isAiming then
         local closestPlayer, closestDist = nil, settings.aimbot.fov
@@ -564,8 +710,11 @@ runService.Heartbeat:Connect(function()
         end
         
         if closestPlayer and closestPlayer.Character then
-            local targetPos = closestPlayer.Character[settings.aimbot.targetPart].Position
-            camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPos), settings.aimbot.smoothness)
+            local targetPart = closestPlayer.Character[settings.aimbot.targetPart]
+            if targetPart then
+                local targetPos = targetPart.Position
+                camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPos), settings.aimbot.smoothness)
+            end
         end
     end
 end)
