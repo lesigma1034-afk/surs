@@ -1,4 +1,4 @@
--- COCITESCRIPT | Secured Hub
+-- COCITESCRIPT | Mobile Edition
 if _G.CociteRunning then
     print("COCITESCRIPT уже запущен!")
     return
@@ -14,8 +14,7 @@ local Camera = workspace.CurrentCamera
 local Settings = {
     Aimbot = {
         Enabled = false,
-        Key = Enum.UserInputType.MouseButton2, -- ПКМ
-        Smoothness = 0.15,
+        Smoothness = 0.2,
         Prediction = 0.035,
         HitPart = "HumanoidRootPart"
     },
@@ -25,93 +24,103 @@ local Settings = {
     },
     Noclip = {
         Enabled = false
+    },
+    ESP = {
+        Enabled = false,
+        Boxes = {},
+        Names = {}
     }
 }
 
 -------------------------------------------------------------------
--- ОКНО АВТОРИЗАЦИИ (ПАРОЛЬ)
+-- 1. ОКНО АВТОРИЗАЦИИ (ПАРОЛЬ: 123)
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CociteAuthGUI"
+ScreenGui.Name = "CociteHubGui"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
 local AuthFrame = Instance.new("Frame")
-AuthFrame.Name = "AuthFrame"
 AuthFrame.Parent = ScreenGui
 AuthFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-AuthFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
-AuthFrame.Size = UDim2.new(0, 300, 0, 180)
+AuthFrame.Position = UDim2.new(0.5, -140, 0.5, -85)
+AuthFrame.Size = UDim2.new(0, 280, 0, 170)
 AuthFrame.Active = true
 AuthFrame.Draggable = true
 
 local AuthCorner = Instance.new("UICorner")
-AuthCorner.CornerRadius = UDim.new(0, 8)
+AuthCorner.CornerRadius = UDim.new(0, 10)
 AuthCorner.Parent = AuthFrame
 
-local AuthHeader = Instance.new("Frame")
-AuthHeader.Parent = AuthFrame
-AuthHeader.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-AuthHeader.Size = UDim2.new(1, 0, 0, 35)
-
-local AuthHeaderCorner = Instance.new("UICorner")
-AuthHeaderCorner.CornerRadius = UDim.new(0, 8)
-AuthHeaderCorner.Parent = AuthHeader
-
 local AuthTitle = Instance.new("TextLabel")
-AuthTitle.Parent = AuthHeader
+AuthTitle.Parent = AuthFrame
 AuthTitle.BackgroundTransparency = 1
-AuthTitle.Size = UDim2.new(1, 0, 1, 0)
+AuthTitle.Size = UDim2.new(1, 0, 0, 40)
 AuthTitle.Font = Enum.Font.GothamBold
-AuthTitle.Text = "⚡ COCITESCRIPT | LOGIN ⚡"
+AuthTitle.Text = "⚡ COCITESCRIPT LOGIN ⚡"
 AuthTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AuthTitle.TextSize = 14
 
 local TextBox = Instance.new("TextBox")
 TextBox.Parent = AuthFrame
 TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-TextBox.Position = UDim2.new(0, 25, 0, 55)
-TextBox.Size = UDim2.new(0, 250, 0, 40)
+TextBox.Position = UDim2.new(0, 20, 0, 50)
+TextBox.Size = UDim2.new(0, 240, 0, 40)
 TextBox.Font = Enum.Font.Gotham
-TextBox.PlaceholderText = "Введите пароль (например: 123)"
+TextBox.PlaceholderText = "Пароль (123)"
 TextBox.Text = ""
 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.TextSize = 13
+TextBox.TextSize = 14
 
 local TextCorner = Instance.new("UICorner")
-TextCorner.CornerRadius = UDim.new(0, 6)
+TextCorner.CornerRadius = UDim.new(0, 8)
 TextCorner.Parent = TextBox
 
 local LoginBtn = Instance.new("TextButton")
 LoginBtn.Parent = AuthFrame
 LoginBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
-LoginBtn.Position = UDim2.new(0, 25, 0, 110)
-LoginBtn.Size = UDim2.new(0, 250, 0, 40)
+LoginBtn.Position = UDim2.new(0, 20, 0, 105)
+LoginBtn.Size = UDim2.new(0, 240, 0, 40)
 LoginBtn.Font = Enum.Font.GothamBold
 LoginBtn.Text = "ВОЙТИ"
 LoginBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 LoginBtn.TextSize = 14
 
 local LoginCorner = Instance.new("UICorner")
-LoginCorner.CornerRadius = UDim.new(0, 6)
+LoginCorner.CornerRadius = UDim.new(0, 8)
 LoginCorner.Parent = LoginBtn
 
 -------------------------------------------------------------------
--- ОСНОВНОЙ ИНТЕРФЕЙС (СКРЫТ ДО ВВОДА ПАРОЛЯ)
+-- 2. ГЛАВНОЕ МЕНЮ И ПЛАВАЮЩАЯ КНОПКА ОТКРЫТИЯ/ЗАКРЫТИЯ
 -------------------------------------------------------------------
+local ToggleButton = Instance.new("ImageButton")
+ToggleButton.Name = "CociteToggleBtn"
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+ToggleButton.Position = UDim2.new(0, 20, 0.3, 0)
+ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Visible = false -- Скрыто до ввода пароля
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+ToggleButton.Image = "rbxassetid://6034287592" -- Иконка шестеренки/лого
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(1, 0) -- Круглая кнопка
+ToggleCorner.Parent = ToggleButton
+
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
-MainFrame.Size = UDim2.new(0, 350, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -140)
+MainFrame.Size = UDim2.new(0, 350, 0, 310)
+MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
-MainFrame.Visible = false -- Скрыто до ввода пароля
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
 
 local Header = Instance.new("Frame")
 Header.Parent = MainFrame
@@ -119,7 +128,7 @@ Header.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 Header.Size = UDim2.new(1, 0, 0, 40)
 
 local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 8)
+HeaderCorner.CornerRadius = UDim.new(0, 10)
 HeaderCorner.Parent = Header
 
 local Title = Instance.new("TextLabel")
@@ -128,16 +137,39 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Size = UDim2.new(1, -15, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "⚡ COCITESCRIPT ⚡"
+Title.Text = "⚡ COCITESCRIPT | HUB ⚡"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
+Title.TextSize = 15
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
--- Проверка пароля при нажатии
+-- Кнопка закрытия внутри меню (крестик)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = Header
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Position = UDim2.new(1, -35, 0.5, -12)
+CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 12
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+end)
+
+ToggleButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+-- Проверка пароля
 LoginBtn.MouseButton1Click:Connect(function()
     if TextBox.Text == "123" then
-        AuthFrame:Destroy() -- Закрываем окно пароля
-        MainFrame.Visible = true -- Открываем главный чит
+        AuthFrame:Destroy()
+        ToggleButton.Visible = true
+        MainFrame.Visible = true
     else
         TextBox.Text = ""
         TextBox.PlaceholderText = "НЕВЕРНЫЙ ПАРОЛЬ!"
@@ -145,7 +177,7 @@ LoginBtn.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- ФУНКЦИИ КНОПОК
+-- 3. СОЗДАНИЕ КНОПОК И ФУНКЦИЙ
 -------------------------------------------------------------------
 local function CreateButton(name, posY, callback)
     local btn = Instance.new("TextButton")
@@ -156,10 +188,10 @@ local function CreateButton(name, posY, callback)
     btn.Font = Enum.Font.GothamSemibold
     btn.Text = name .. ": OFF"
     btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn.TextSize = 14
+    btn.TextSize = 13
     
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
+    corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = btn
     
     local active = false
@@ -179,13 +211,13 @@ local function CreateButton(name, posY, callback)
     return btn
 end
 
--- Логика Aimbot (Плавный, не кривой)
+-- АИМБОТ (Отдельная кнопка + Мобильная наводка)
 local function GetClosestPlayer()
     local closestPlayer = nil
     local shortestDist = math.huge
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local part = player.Character:FindFirstChild(Settings.Aimbot.HitPart)
+            local part = player.Character:FindFirstChild("HumanoidRootPart")
             if part then
                 local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
                 if onScreen then
@@ -201,24 +233,17 @@ local function GetClosestPlayer()
     return closestPlayer
 end
 
-local aimbotKeyPressed = false
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Settings.Aimbot.Key then aimbotKeyPressed = true end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Settings.Aimbot.Key then aimbotKeyPressed = false end
-end)
-
 RunService.RenderStepped:Connect(function()
-    if Settings.Aimbot.Enabled and aimbotKeyPressed then
+    if Settings.Aimbot.Enabled then
         local target = GetClosestPlayer()
-        if target and target.Character and target.Character:FindFirstChild(Settings.Aimbot.HitPart) then
-            local targetPart = target.Character[Settings.Aimbot.HitPart]
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPart = target.Character.HumanoidRootPart
             local predictedPos = targetPart.Position + (targetPart.AssemblyLinearVelocity * Settings.Aimbot.Prediction)
             Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, predictedPos), Settings.Aimbot.Smoothness)
         end
     end
     
+    -- Noclip
     if Settings.Noclip.Enabled and LocalPlayer.Character then
         for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
@@ -226,7 +251,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Логика Fly
+-- КАСТОМНЫЙ ФЛАЙ (WASD / Направление камеры)
 local flyConnection
 local function ToggleFly(state)
     Settings.Fly.Enabled = state
@@ -254,7 +279,6 @@ local function ToggleFly(state)
             local moveDir = Vector3.new()
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camCF.LookVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camCF.LookVector end
-            if UserIconService_or_UserInputService_Check and UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camCF.RightVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camCF.RightVector end
             if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camCF.RightVector end
             bv.Velocity = moveDir * Settings.Fly.Speed
@@ -268,9 +292,75 @@ local function ToggleFly(state)
     end
 end
 
--- Кнопки интерфейса
-CreateButton("Aimbot (Hold Right Click)", 55, function(state) Settings.Aimbot.Enabled = state end)
-CreateButton("Custom Fly (WASD)", 110, function(state) ToggleFly(state) end)
-CreateButton("Noclip", 165, function(state) Settings.Noclip.Enabled = state end)
+-- ESP BOX + NAMES (Боксы и Ники игроков)
+local function ToggleESP(state)
+    Settings.ESP.Enabled = state
+    if not state then
+        for _, box in pairs(Settings.ESP.Boxes) do box:Remove() end
+        for _, name in pairs(Settings.ESP.Names) do name:Remove() end
+        Settings.ESP.Boxes = {}
+        Settings.ESP.Names = {}
+    end
+end
 
-print("COCITESCRIPT успешно загружен! Введите пароль 123 для доступа.")
+RunService.RenderStepped:Connect(function()
+    if not Settings.ESP.Enabled then return end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local hrp = player.Character.HumanoidRootPart
+            local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            
+            -- Создаем или обновляем Box
+            if not Settings.ESP.Boxes[player] then
+                local box = Drawing.new("Square")
+                box.Visible = false
+                box.Color = Color3.fromRGB(0, 255, 100)
+                box.Thickness = 1.5
+                box.Filled = false
+                Settings.ESP.Boxes[player] = box
+            end
+            
+            -- Создаем или обновляем Name
+            if not Settings.ESP.Names[player] then
+                local nameText = Drawing.new("Text")
+                nameText.Visible = false
+                nameText.Color = Color3.fromRGB(255, 255, 255)
+                nameText.Size = 14
+                nameText.Center = true
+                nameText.Outline = true
+                Settings.ESP.Names[player] = nameText
+            end
+            
+            local box = Settings.ESP.Boxes[player]
+            local nameText = Settings.ESP.Names[player]
+            
+            if onScreen then
+                local size = Vector3.new(2, 3, 0) * (300 / pos.Z)
+                box.Size = Vector2.new(size.X, size.Y)
+                box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
+                box.Visible = true
+                
+                nameText.Text = player.Name
+                nameText.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 18)
+                nameText.Visible = true
+            else
+                box.Visible = false
+                nameText.Visible = false
+            end
+        else
+            if Settings.ESP.Boxes[player] then Settings.ESP.Boxes[player].Visible = false end
+            if Settings.ESP.Names[player] then Settings.ESP.Names[player].Visible = false end
+        end
+    end
+end)
+
+-------------------------------------------------------------------
+-- ДОБАВЛЕНИЕ КНОПОК В МЕНЮ
+-------------------------------------------------------------------
+CreateButton("Aimbot (Auto Lock)", 50, function(state) Settings.Aimbot.Enabled = state end)
+CreateButton("ESP (Boxes + Names)", 105, function(state) ToggleESP(state) end)
+CreateButton("Custom Fly (WASD)", 160, function(state) ToggleFly(state) end)
+CreateButton("Noclip", 215, function(state) Settings.Noclip.Enabled = state end)
+
+print("COCITESCRIPT Мобильный хаб успешно загружен!")
