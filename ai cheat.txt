@@ -1,4 +1,4 @@
--- COCITESCRIPT | Ultimate Mobile Hub (No Fly)
+-- COCITESCRIPT | Ultimate Mobile Hub (Clean & Fixed)
 if _G.CociteRunning then
     print("COCITESCRIPT уже запущен!")
     return
@@ -7,7 +7,6 @@ _G.CociteRunning = true
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
@@ -27,32 +26,28 @@ local Settings = {
 }
 
 -------------------------------------------------------------------
--- 1. ОКНО АВТОРИЗАЦИИ (ЧЕРНО-ФИОЛЕТОВЫЙ СТИЛЬ)
+-- 1. ОКНО АВТОРИЗАЦИИ
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CociteHubGui"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
-local AuthFrame = Instance.new("Frame")
-AuthFrame.Parent = ScreenGui
+local AuthFrame = Instance.new("Frame", ScreenGui)
 AuthFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 25)
 AuthFrame.Position = UDim2.new(0.5, -140, 0.5, -85)
 AuthFrame.Size = UDim2.new(0, 280, 0, 170)
 AuthFrame.Active = true
 AuthFrame.Draggable = true
 
-local AuthCorner = Instance.new("UICorner")
+local AuthCorner = Instance.new("UICorner", AuthFrame)
 AuthCorner.CornerRadius = UDim.new(0, 10)
-AuthCorner.Parent = AuthFrame
 
-local AuthStroke = Instance.new("UIStroke")
+local AuthStroke = Instance.new("UIStroke", AuthFrame)
 AuthStroke.Color = Color3.fromRGB(120, 40, 200)
 AuthStroke.Thickness = 2
-AuthStroke.Parent = AuthFrame
 
-local AuthTitle = Instance.new("TextLabel")
-AuthTitle.Parent = AuthFrame
+local AuthTitle = Instance.new("TextLabel", AuthFrame)
 AuthTitle.BackgroundTransparency = 1
 AuthTitle.Size = UDim2.new(1, 0, 0, 40)
 AuthTitle.Font = Enum.Font.GothamBold
@@ -60,8 +55,7 @@ AuthTitle.Text = "⚡ COCITESCRIPT LOGIN ⚡"
 AuthTitle.TextColor3 = Color3.fromRGB(200, 150, 255)
 AuthTitle.TextSize = 14
 
-local TextBox = Instance.new("TextBox")
-TextBox.Parent = AuthFrame
+local TextBox = Instance.new("TextBox", AuthFrame)
 TextBox.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 TextBox.Position = UDim2.new(0, 20, 0, 50)
 TextBox.Size = UDim2.new(0, 240, 0, 40)
@@ -70,13 +64,9 @@ TextBox.PlaceholderText = "Введите пароль..."
 TextBox.Text = ""
 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 TextBox.TextSize = 14
+Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 8)
 
-local TextCorner = Instance.new("UICorner")
-TextCorner.CornerRadius = UDim.new(0, 8)
-TextCorner.Parent = TextBox
-
-local LoginBtn = Instance.new("TextButton")
-LoginBtn.Parent = AuthFrame
+local LoginBtn = Instance.new("TextButton", AuthFrame)
 LoginBtn.BackgroundColor3 = Color3.fromRGB(90, 20, 160)
 LoginBtn.Position = UDim2.new(0, 20, 0, 105)
 LoginBtn.Size = UDim2.new(0, 240, 0, 40)
@@ -84,17 +74,13 @@ LoginBtn.Font = Enum.Font.GothamBold
 LoginBtn.Text = "ВОЙТИ"
 LoginBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 LoginBtn.TextSize = 14
-
-local LoginCorner = Instance.new("UICorner")
-LoginCorner.CornerRadius = UDim.new(0, 8)
-LoginCorner.Parent = LoginBtn
+Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 8)
 
 -------------------------------------------------------------------
 -- 2. ГЛАВНОЕ МЕНЮ И КНОПКА ОТКРЫТИЯ
 -------------------------------------------------------------------
-local ToggleButton = Instance.new("ImageButton")
+local ToggleButton = Instance.new("ImageButton", ScreenGui)
 ToggleButton.Name = "CociteToggleBtn"
-ToggleButton.Parent = ScreenGui
 ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 15, 30)
 ToggleButton.Position = UDim2.new(0, 20, 0.3, 0)
 ToggleButton.Size = UDim2.new(0, 50, 0, 50)
@@ -103,45 +89,31 @@ ToggleButton.Active = true
 ToggleButton.Draggable = true
 ToggleButton.Image = "rbxassetid://6034287592"
 
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(1, 0)
-ToggleCorner.Parent = ToggleButton
-
-local ToggleStroke = Instance.new("UIStroke")
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
+local ToggleStroke = Instance.new("UIStroke", ToggleButton)
 ToggleStroke.Color = Color3.fromRGB(140, 50, 230)
 ToggleStroke.Thickness = 2
-ToggleStroke.Parent = ToggleButton
 
-local MainFrame = Instance.new("Frame")
+local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 25)
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -140)
-MainFrame.Size = UDim2.new(0, 350, 0, 260) -- Уменьшена высота из-за удаления флая
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
+MainFrame.Size = UDim2.new(0, 350, 0, 215) -- Компактный размер под 3 кнопки
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = MainFrame
-
-local MainStroke = Instance.new("UIStroke")
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+local MainStroke = Instance.new("UIStroke", MainFrame)
 MainStroke.Color = Color3.fromRGB(120, 40, 200)
 MainStroke.Thickness = 2
-MainStroke.Parent = MainFrame
 
-local Header = Instance.new("Frame")
-Header.Parent = MainFrame
+local Header = Instance.new("Frame", MainFrame)
 Header.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 Header.Size = UDim2.new(1, 0, 0, 40)
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
 
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 10)
-HeaderCorner.Parent = Header
-
-local Title = Instance.new("TextLabel")
-Title.Parent = Header
+local Title = Instance.new("TextLabel", Header)
 Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Size = UDim2.new(1, -15, 1, 0)
@@ -151,8 +123,7 @@ Title.TextColor3 = Color3.fromRGB(200, 150, 255)
 Title.TextSize = 15
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Parent = Header
+local CloseBtn = Instance.new("TextButton", Header)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 CloseBtn.Position = UDim2.new(1, -35, 0.5, -12)
 CloseBtn.Size = UDim2.new(0, 24, 0, 24)
@@ -160,9 +131,7 @@ CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 12
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 6)
-CloseCorner.Parent = CloseBtn
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
 CloseBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
@@ -186,9 +155,8 @@ end)
 -------------------------------------------------------------------
 -- 3. ПЛАВАЮЩАЯ КНОПКА АИМА
 -------------------------------------------------------------------
-local AimFloatBtn = Instance.new("TextButton")
+local AimFloatBtn = Instance.new("TextButton", ScreenGui)
 AimFloatBtn.Name = "CociteAimButton"
-AimFloatBtn.Parent = ScreenGui
 AimFloatBtn.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
 AimFloatBtn.Position = UDim2.new(0.8, 0, 0.4, 0)
 AimFloatBtn.Size = UDim2.new(0, 95, 0, 45)
@@ -200,14 +168,10 @@ AimFloatBtn.Visible = false
 AimFloatBtn.Active = true
 AimFloatBtn.Draggable = true
 
-local AimFloatCorner = Instance.new("UICorner")
-AimFloatCorner.CornerRadius = UDim.new(0, 8)
-AimFloatCorner.Parent = AimFloatBtn
-
-local AimFloatStroke = Instance.new("UIStroke")
+Instance.new("UICorner", AimFloatBtn).CornerRadius = UDim.new(0, 8)
+local AimFloatStroke = Instance.new("UIStroke", AimFloatBtn)
 AimFloatStroke.Color = Color3.fromRGB(140, 50, 230)
 AimFloatStroke.Thickness = 2
-AimFloatStroke.Parent = AimFloatBtn
 
 local function GetClosestToCenter()
     local closestP = nil
@@ -266,8 +230,7 @@ end)
 -- 4. СОЗДАНИЕ КНОПОК МЕНЮ
 -------------------------------------------------------------------
 local function CreateButton(name, posY, callback)
-    local btn = Instance.new("TextButton")
-    btn.Parent = MainFrame
+    local btn = Instance.new("TextButton", MainFrame)
     btn.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
     btn.Position = UDim2.new(0, 15, 0, posY)
     btn.Size = UDim2.new(0, 320, 0, 45)
@@ -276,14 +239,10 @@ local function CreateButton(name, posY, callback)
     btn.TextColor3 = Color3.fromRGB(200, 200, 200)
     btn.TextSize = 13
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = btn
-    
-    local stroke = Instance.new("UIStroke")
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", btn)
     stroke.Color = Color3.fromRGB(80, 30, 150)
     stroke.Thickness = 1
-    stroke.Parent = btn
     
     local active = false
     btn.MouseButton1Click:Connect(function()
@@ -365,7 +324,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- ДОБАВЛЕНИЕ КНОПОК В МЕНЮ
+-- ИНИЦИАЛИЗАЦИЯ КНОПОК В МЕНЮ (ТОЛЬКО 3 ШТУКИ)
 -------------------------------------------------------------------
 CreateButton("Aimbot", 50, function(state) 
     Settings.Aimbot.Enabled = state
@@ -381,4 +340,4 @@ end)
 CreateButton("ESP (Boxes + Names)", 105, function(state) ToggleESP(state) end)
 CreateButton("Noclip", 160, function(state) Settings.Noclip.Enabled = state end)
 
-print("COCITESCRIPT Hub успешно загружен!")
+print("COCITESCRIPT Hub успешно загружен без флая!")
