@@ -1,4 +1,4 @@
--- COCITESCRIPT | Ultimate Mobile Hub
+-- COCITESCRIPT | Ultimate Mobile Hub (No Fly)
 if _G.CociteRunning then
     print("COCITESCRIPT уже запущен!")
     return
@@ -15,10 +15,6 @@ local Settings = {
     Aimbot = {
         Enabled = false,
         LockedTarget = nil,
-    },
-    Fly = {
-        Enabled = false,
-        Speed = 50
     },
     Noclip = {
         Enabled = false
@@ -121,7 +117,7 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 25)
 MainFrame.Position = UDim2.new(0.5, -175, 0.5, -140)
-MainFrame.Size = UDim2.new(0, 350, 0, 310)
+MainFrame.Size = UDim2.new(0, 350, 0, 260) -- Уменьшена высота из-за удаления флая
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -188,7 +184,7 @@ LoginBtn.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- 3. ПЛАВАЮЩАЯ КНОПКА АИМА (ПОЯВЛЯЕТСЯ ТОЛЬКО ПРИ ВКЛЮЧЕНИИ)
+-- 3. ПЛАВАЮЩАЯ КНОПКА АИМА
 -------------------------------------------------------------------
 local AimFloatBtn = Instance.new("TextButton")
 AimFloatBtn.Name = "CociteAimButton"
@@ -200,7 +196,7 @@ AimFloatBtn.Font = Enum.Font.GothamBold
 AimFloatBtn.Text = "COCITE AIM"
 AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
 AimFloatBtn.TextSize = 12
-AimFloatBtn.Visible = false -- Скрыта по умолчанию!
+AimFloatBtn.Visible = false
 AimFloatBtn.Active = true
 AimFloatBtn.Draggable = true
 
@@ -218,7 +214,7 @@ local function GetClosestToCenter()
     local shortestDist = math.huge
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local part = player.Character:FindFirstChild("Head") -- Строго в голову/шею
+            local part = player.Character:FindFirstChild("Head")
             if part then
                 local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
                 if onScreen then
@@ -307,82 +303,7 @@ local function CreateButton(name, posY, callback)
 end
 
 -------------------------------------------------------------------
--- 5. УДОБНЫЙ МОБИЛЬНЫЙ FLY (С КНОПКАМИ УПРАВЛЕНИЯ)
--------------------------------------------------------------------
-local FlyGui = Instance.new("ScreenGui")
-FlyGui.Name = "CociteFlyGui"
-FlyGui.Parent = game.CoreGui
-FlyGui.Enabled = false
-
-local UpBtn = Instance.new("TextButton")
-UpBtn.Parent = FlyGui
-UpBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 60)
-UpBtn.Position = UDim2.new(0.85, 0, 0.5, -60)
-UpBtn.Size = UDim2.new(0, 50, 0, 50)
-UpBtn.Font = Enum.Font.GothamBold
-UpBtn.Text = "UP"
-UpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-UpBtn.TextSize = 14
-Instance.new("UICorner", UpBtn).CornerRadius = UDim.new(1, 0)
-
-local DownBtn = Instance.new("TextButton")
-DownBtn.Parent = FlyGui
-DownBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 60)
-DownBtn.Position = UDim2.new(0.85, 0, 0.5, 10)
-DownBtn.Size = UDim2.new(0, 50, 0, 50)
-DownBtn.Font = Enum.Font.GothamBold
-DownBtn.Text = "DOWN"
-DownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-DownBtn.TextSize = 11
-Instance.new("UICorner", DownBtn).CornerRadius = UDim.new(1, 0)
-
-local flyConn
-local movingUp, movingDown = false, false
-
-UpBtn.MouseButton1Down:Connect(function() movingUp = true end)
-UpBtn.MouseButton1Up:Connect(function() movingUp = false end)
-DownBtn.MouseButton1Down:Connect(function() movingDown = true end)
-DownBtn.MouseButton1Up:Connect(function() movingDown = false end)
-
-local function ToggleFly(state)
-    Settings.Fly.Enabled = state
-    FlyGui.Enabled = state
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    
-    if state then
-        if hum then hum.PlatformStand = true end
-        local bv = Instance.new("BodyVelocity")
-        bv.Name = "CociteFly"
-        bv.Parent = hrp
-        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        
-        flyConn = RunService.RenderStepped:Connect(function()
-            if not Settings.Fly.Enabled then return end
-            local camCF = Camera.CFrame
-            local move = (camCF.LookVector * (hum.MoveDirection:Dot(camCF.LookVector))) + (camCF.RightVector * (hum.MoveDirection:Dot(camCF.RightVector)))
-            local upVel = 0
-            if movingUp then upVel = Settings.Fly.Speed elseif movingDown then upVel = -Settings.Fly.Speed end
-            
-            if move.Magnitude > 0 or upVel ~= 0 then
-                bv.Velocity = (move.Unit * Settings.Fly.Speed) + Vector3.new(0, upVel, 0)
-            else
-                bv.Velocity = Vector3.new(0, 0.1, 0)
-            end
-        end)
-    else
-        if flyConn then flyConn:Disconnect() end
-        if hrp:FindFirstChild("CociteFly") then hrp.CociteFly:Destroy() end
-        if hum then hum.PlatformStand = false end
-        movingUp, movingDown = false, false
-    end
-end
-
--------------------------------------------------------------------
--- 6. ESP (BOXES + NAMES)
+-- 5. ESP (BOXES + NAMES)
 -------------------------------------------------------------------
 local function ToggleESP(state)
     Settings.ESP.Enabled = state
@@ -448,7 +369,7 @@ end)
 -------------------------------------------------------------------
 CreateButton("Aimbot", 50, function(state) 
     Settings.Aimbot.Enabled = state
-    AimFloatBtn.Visible = state -- Кнопка аима появляется ТОЛЬКО когда включен тумблер в меню!
+    AimFloatBtn.Visible = state
     if not state then 
         AimActive = false
         AimFloatBtn.BackgroundColor3 = Color3.fromRGB(25, 20, 35)
@@ -458,7 +379,6 @@ CreateButton("Aimbot", 50, function(state)
 end)
 
 CreateButton("ESP (Boxes + Names)", 105, function(state) ToggleESP(state) end)
-CreateButton("Custom Fly", 160, function(state) ToggleFly(state) end)
-CreateButton("Noclip", 215, function(state) Settings.Noclip.Enabled = state end)
+CreateButton("Noclip", 160, function(state) Settings.Noclip.Enabled = state end)
 
 print("COCITESCRIPT Hub успешно загружен!")
