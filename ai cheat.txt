@@ -1,402 +1,211 @@
--- COCITESCRIPT | Ultimate Cyber Hub (Fixed ESP + Personal Greeting)
+-- COCITESCRIPT | Delta Mobile VIP Hub
 if _G.CociteRunning then
-    print("COCITESCRIPT уже запущен!")
     return
 end
 _G.CociteRunning = true
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 local Settings = {
-    Aimbot = {
-        Enabled = false,
-        LockedTarget = nil,
-    },
-    Noclip = {
-        Enabled = false
-    },
-    ESP = {
-        Enabled = false,
-        ActiveDrawings = {} -- Оптимизированный пул для ESP без утечек памяти и зависаний
-    }
+    Aimbot = { Enabled = false, Target = nil },
+    Noclip = { Enabled = false },
+    ESP = { Enabled = false, Cache = {} }
 }
 
--------------------------------------------------------------------
--- 1. КРАСИВОЕ ОКНО АВТОРИЗАЦИИ С НИКОМ ИГРОКА
--------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CociteCyberGui"
+ScreenGui.Name = "CociteDeltaVIP"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
-local AuthFrame = Instance.new("Frame", ScreenGui)
-AuthFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
-AuthFrame.Position = UDim2.new(0.5, -160, 0.5, -100)
-AuthFrame.Size = UDim2.new(0, 320, 0, 200)
-AuthFrame.Active = true
-AuthFrame.Draggable = true
-
-Instance.new("UICorner", AuthFrame).CornerRadius = UDim.new(0, 14)
-local AuthStroke = Instance.new("UIStroke", AuthFrame)
-AuthStroke.Color = Color3.fromRGB(140, 40, 255)
-AuthStroke.Thickness = 2.5
-
--- Шапка авторизации
-local AuthHeader = Instance.new("Frame", AuthFrame)
-AuthHeader.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-AuthHeader.Size = UDim2.new(1, 0, 0, 45)
-Instance.new("UICorner", AuthHeader).CornerRadius = UDim.new(0, 14)
-
--- Убираем острые углы снизу шапки
-local FixCorner = Instance.new("Frame", AuthHeader)
-FixCorner.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-FixCorner.BorderSizePixel = 0
-FixCorner.Position = UDim2.new(0, 0, 1, -10)
-FixCorner.Size = UDim2.new(1, 0, 0, 10)
-
-local AuthTitle = Instance.new("TextLabel", AuthHeader)
-AuthTitle.BackgroundTransparency = 1
-AuthTitle.Size = UDim2.new(1, 0, 1, 0)
-AuthTitle.Font = Enum.Font.GothamBold
-AuthTitle.Text = "⚡ COCITESCRIPT SECURITY ⚡"
-AuthTitle.TextColor3 = Color3.fromRGB(210, 160, 255)
-AuthTitle.TextSize = 13
-
--- Динамическое приветствие по нику игрока
-local WelcomeLabel = Instance.new("TextLabel", AuthFrame)
-WelcomeLabel.BackgroundTransparency = 1
-WelcomeLabel.Position = UDim2.new(0, 20, 0, 55)
-WelcomeLabel.Size = UDim2.new(1, -40, 0, 25)
-WelcomeLabel.Font = Enum.Font.GothamSemibold
-WelcomeLabel.Text = "Привет, " .. LocalPlayer.Name .. "!"
-WelcomeLabel.TextColor3 = Color3.fromRGB(180, 200, 255)
-WelcomeLabel.TextSize = 14
-WelcomeLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local TextBox = Instance.new("TextBox", AuthFrame)
-TextBox.BackgroundColor3 = Color3.fromRGB(22, 17, 35)
-TextBox.Position = UDim2.new(0, 20, 0, 90)
-TextBox.Size = UDim2.new(0, 280, 0, 42)
-TextBox.Font = Enum.Font.Gotham
-TextBox.PlaceholderText = "Введите ключ доступа (123)..."
-TextBox.Text = ""
-TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.PlaceholderColor3 = Color3.fromRGB(130, 120, 150)
-TextBox.TextSize = 13
-Instance.new("UICorner", TextBox).CornerRadius = UDim.new(0, 10)
-local TextStroke = Instance.new("UIStroke", TextBox)
-TextStroke.Color = Color3.fromRGB(80, 40, 140)
-TextStroke.Thickness = 1
-
-local LoginBtn = Instance.new("TextButton", AuthFrame)
-LoginBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
-LoginBtn.Position = UDim2.new(0, 20, 0, 145)
-LoginBtn.Size = UDim2.new(0, 280, 0, 40)
-LoginBtn.Font = Enum.Font.GothamBold
-LoginBtn.Text = "ПОДТВЕРДИТЬ КЛЮЧ"
-LoginBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-LoginBtn.TextSize = 13
-Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 10)
-
--------------------------------------------------------------------
--- 2. ГЛАВНОЕ МЕНЮ (КИБЕР-ДИЗАЙН)
--------------------------------------------------------------------
-local ToggleButton = Instance.new("ImageButton", ScreenGui)
-ToggleButton.Name = "CociteToggleBtn"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
-ToggleButton.Position = UDim2.new(0, 20, 0.3, 0)
-ToggleButton.Size = UDim2.new(0, 52, 0, 52)
-ToggleButton.Visible = false
-ToggleButton.Active = true
-ToggleButton.Draggable = true
-ToggleButton.Image = "rbxassetid://6034287592"
-
-Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
-local ToggleStroke = Instance.new("UIStroke", ToggleButton)
-ToggleStroke.Color = Color3.fromRGB(160, 60, 255)
-ToggleStroke.Thickness = 2.5
+local OpenBtn = Instance.new("TextButton", ScreenGui)
+OpenBtn.Size = UDim2.new(0, 45, 0, 45)
+OpenBtn.Position = UDim2.new(0, 15, 0.3, 0)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(15, 12, 25)
+OpenBtn.Text = "👑"
+OpenBtn.TextSize = 22
+OpenBtn.TextColor3 = Color3.fromRGB(230, 180, 255)
+OpenBtn.Active = true
+OpenBtn.Draggable = true
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
+local OpenStroke = Instance.new("UIStroke", OpenBtn)
+OpenStroke.Color = Color3.fromRGB(170, 50, 255)
+OpenStroke.Thickness = 2
 
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 310, 0, 280)
+MainFrame.Position = UDim2.new(0.5, -155, 0.5, -140)
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
-MainFrame.Position = UDim2.new(0.5, -180, 0.5, -120)
-MainFrame.Size = UDim2.new(0, 360, 0, 230)
-MainFrame.Visible = false
+MainFrame.Visible = true
 MainFrame.Active = true
 MainFrame.Draggable = true
-
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
 local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(140, 40, 255)
-MainStroke.Thickness = 2.5
+MainStroke.Color = Color3.fromRGB(170, 50, 255)
+MainStroke.Thickness = 2
 
 local Header = Instance.new("Frame", MainFrame)
-Header.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-Header.Size = UDim2.new(1, 0, 0, 45)
+Header.Size = UDim2.new(1, 0, 0, 42)
+Header.BackgroundColor3 = Color3.fromRGB(22, 16, 35)
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 14)
 
 local HeaderFix = Instance.new("Frame", Header)
-HeaderFix.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-HeaderFix.BorderSizePixel = 0
-HeaderFix.Position = UDim2.new(0, 0, 1, -10)
 HeaderFix.Size = UDim2.new(1, 0, 0, 10)
+HeaderFix.Position = UDim2.new(0, 0, 1, -10)
+HeaderFix.BackgroundColor3 = Color3.fromRGB(22, 16, 35)
+HeaderFix.BorderSizePixel = 0
 
 local Title = Instance.new("TextLabel", Header)
+Title.Size = UDim2.new(1, -40, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0, 18, 0, 0)
-Title.Size = UDim2.new(1, -18, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "⚡ COCITESCRIPT | CYBER HUB ⚡"
-Title.TextColor3 = Color3.fromRGB(210, 160, 255)
-Title.TextSize = 14
+Title.Text = "👑 COCITESCRIPT | DELTA VIP"
+Title.TextColor3 = Color3.fromRGB(230, 180, 255)
+Title.TextSize = 12
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", Header)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 45, 65)
-CloseBtn.Position = UDim2.new(1, -38, 0.5, -12)
 CloseBtn.Size = UDim2.new(0, 24, 0, 24)
-CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Position = UDim2.new(1, -32, 0.5, -12)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 45, 65)
 CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 11
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
-CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-end)
+CloseBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
+OpenBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
 
-ToggleButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
+local function CreateToggle(name, yPos, callback)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0, 280, 0, 45)
+    btn.Position = UDim2.new(0, 15, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Text = name .. " [ OFF ]"
+    btn.TextColor3 = Color3.fromRGB(190, 180, 210)
+    btn.TextSize = 12
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(100, 45, 180)
+    stroke.Thickness = 1.2
 
-LoginBtn.MouseButton1Click:Connect(function()
-    if TextBox.Text == "123" then
-        AuthFrame:Destroy()
-        ToggleButton.Visible = true
-        MainFrame.Visible = true
-    else
-        TextBox.Text = ""
-        TextBox.PlaceholderText = "❌ ОШИБКА: НЕВЕРНЫЙ КЛЮЧ!"
-    end
-end)
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(130, 30, 230)}):Play()
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Text = name .. " [ VIP ON ]"
+        else
+            TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 15, 32)}):Play()
+            btn.TextColor3 = Color3.fromRGB(190, 180, 210)
+            btn.Text = name .. " [ OFF ]"
+        end
+        callback(state)
+    end)
+    return btn
+end
 
--------------------------------------------------------------------
--- 3. ПЛАВАЮЩАЯ КНОПКА АИМБОТА
--------------------------------------------------------------------
-local AimFloatBtn = Instance.new("TextButton", ScreenGui)
-AimFloatBtn.Name = "CociteAimButton"
-AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-AimFloatBtn.Position = UDim2.new(0.8, 0, 0.4, 0)
-AimFloatBtn.Size = UDim2.new(0, 100, 0, 46)
-AimFloatBtn.Font = Enum.Font.GothamBold
-AimFloatBtn.Text = "🎯 AIM: OFF"
-AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
-AimFloatBtn.TextSize = 12
-AimFloatBtn.Visible = false
-AimFloatBtn.Active = true
-AimFloatBtn.Draggable = true
-
-Instance.new("UICorner", AimFloatBtn).CornerRadius = UDim.new(0, 10)
-local AimFloatStroke = Instance.new("UIStroke", AimFloatBtn)
-AimFloatStroke.Color = Color3.fromRGB(150, 50, 255)
-AimFloatStroke.Thickness = 2
-
-local function GetClosestToCenter()
-    local closestP = nil
-    local shortestDist = math.huge
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local part = player.Character:FindFirstChild("Head")
-            if part then
-                local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+local function GetTarget()
+    local target, dist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+            local head = p.Character:FindFirstChild("Head")
+            if head then
+                local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 if onScreen then
-                    local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
-                    if magnitude < shortestDist then
-                        shortestDist = magnitude
-                        closestP = player
-                    end
+                    local mag = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                    if mag < dist then dist, target = mag, p end
                 end
             end
         end
     end
-    return closestP
+    return target
 end
 
-local AimActive = false
-AimFloatBtn.MouseButton1Click:Connect(function()
-    AimActive = not AimActive
-    if AimActive then
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        AimFloatBtn.Text = "🎯 AIM: ON"
-        Settings.Aimbot.LockedTarget = GetClosestToCenter()
-    else
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
-        AimFloatBtn.Text = "🎯 AIM: OFF"
-        Settings.Aimbot.LockedTarget = nil
+CreateToggle("Aimbot", 55, function(state)
+    Settings.Aimbot.Enabled = state
+end)
+
+CreateToggle("ESP (Boxes + Names)", 110, function(state)
+    Settings.ESP.Enabled = state
+    if not state then
+        for _, v in pairs(Settings.ESP.Cache) do
+            if v.Box then v.Box:Remove() end
+            if v.Name then v.Name:Remove() end
+        end
+        Settings.ESP.Cache = {}
     end
 end)
 
+CreateToggle("Noclip", 165, function(state)
+    Settings.Noclip.Enabled = state
+end)
+
 RunService.RenderStepped:Connect(function()
-    if Settings.Aimbot.Enabled and AimActive then
-        local target = Settings.Aimbot.LockedTarget
-        if target and target.Character and target.Character:FindFirstChild("Head") and target.Character.Humanoid.Health > 0 then
-            local head = target.Character.Head
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
-        else
-            Settings.Aimbot.LockedTarget = GetClosestToCenter()
+    if Settings.Aimbot.Enabled then
+        local t = Settings.Aimbot.Target
+        if not t or not t.Character or not t.Character:FindFirstChild("Head") or t.Character.Humanoid.Health <= 0 then
+            Settings.Aimbot.Target = GetTarget()
+            t = Settings.Aimbot.Target
+        end
+        if t and t.Character and t.Character:FindFirstChild("Head") then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Character.Head.Position)
         end
     end
-    
+
     if Settings.Noclip.Enabled and LocalPlayer.Character then
         for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
         end
     end
-end)
 
--------------------------------------------------------------------
--- 4. КОНСТРУКТОР КНОПОК МЕНЮ
--------------------------------------------------------------------
-local function CreateButton(name, posY, callback)
-    local btn = Instance.new("TextButton", MainFrame)
-    btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-    btn.Position = UDim2.new(0, 20, 0, posY)
-    btn.Size = UDim2.new(0, 320, 0, 45)
-    btn.Font = Enum.Font.GothamSemibold
-    btn.Text = name .. ": OFF"
-    btn.TextColor3 = Color3.fromRGB(190, 180, 210)
-    btn.TextSize = 13
-    
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
-    local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = Color3.fromRGB(90, 40, 160)
-    stroke.Thickness = 1.2
-    
-    local active = false
-    btn.MouseButton1Click:Connect(function()
-        active = not active
-        if active then
-            btn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.Text = name .. ": ON"
-        else
-            btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-            btn.TextColor3 = Color3.fromRGB(190, 180, 210)
-            btn.Text = name .. ": OFF"
-        end
-        callback(active)
-    end)
-    return btn
-end
-
--------------------------------------------------------------------
--- 5. ИДЕАЛЬНО БЫСТРЫЙ И НЕЗАВИСИМЫЙ ESP (ФИКС ЛАГОВ)
--------------------------------------------------------------------
-local function ClearESP()
-    for _, objList in pairs(Settings.ESP.ActiveDrawings) do
-        for _, obj in pairs(objList) do
-            if obj then obj:Remove() end
-        end
-    end
-    Settings.ESP.ActiveDrawings = {}
-end
-
-local function ToggleESP(state)
-    Settings.ESP.Enabled = state
-    if not state then
-        ClearESP()
-    end
-end
-
--- Очистка объектов при выходе игроков
-Players.PlayerRemoving:Connect(function(player)
-    if Settings.ESP.ActiveDrawings[player] then
-        for _, obj in pairs(Settings.ESP.ActiveDrawings[player]) do
-            if obj then obj:Remove() end
-        end
-        Settings.ESP.ActiveDrawings[player] = nil
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if not Settings.ESP.Enabled then return end
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local char = player.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local humanoid = char and char:FindFirstChild("Humanoid")
-            
-            if hrp and humanoid and humanoid.Health > 0 then
-                local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                
-                -- Инициализация графики для игрока один раз
-                if not Settings.ESP.ActiveDrawings[player] then
-                    local box = Drawing.new("Square")
-                    box.Visible = false
-                    box.Color = Color3.fromRGB(180, 50, 255)
-                    box.Thickness = 1.5
-                    box.Filled = false
-                    
-                    local nameText = Drawing.new("Text")
-                    nameText.Visible = false
-                    nameText.Color = Color3.fromRGB(255, 255, 255)
-                    nameText.Size = 13
-                    nameText.Center = true
-                    nameText.Outline = true
-                    
-                    Settings.ESP.ActiveDrawings[player] = {Box = box, Name = nameText}
-                end
-                
-                local visuals = Settings.ESP.ActiveDrawings[player]
-                local box, nameText = visuals.Box, visuals.Name
-                
-                if onScreen then
-                    local scaleFactor = 300 / pos.Z
-                    local size = Vector2.new(2, 3) * scaleFactor
-                    
-                    box.Size = size
-                    box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
-                    box.Visible = true
-                    
-                    nameText.Text = player.Name
-                    nameText.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 18)
-                    nameText.Visible = true
+    if Settings.ESP.Enabled then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                local char = p.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChild("Humanoid")
+                if hrp and hum and hum.Health > 0 then
+                    local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                    if not Settings.ESP.Cache[p] then
+                        local box = Drawing.new("Square")
+                        box.Color = Color3.fromRGB(200, 60, 255)
+                        box.Thickness = 1.5
+                        box.Filled = false
+                        local name = Drawing.new("Text")
+                        name.Color = Color3.fromRGB(255, 255, 255)
+                        name.Size = 12
+                        name.Center = true
+                        name.Outline = true
+                        Settings.ESP.Cache[p] = {Box = box, Name = name}
+                    end
+                    local v = Settings.ESP.Cache[p]
+                    if onScreen then
+                        local scale = 300 / pos.Z
+                        local size = Vector2.new(2, 3) * scale
+                        v.Box.Size = size
+                        v.Box.Position = Vector2.new(pos.X - size.X/2, pos.Y - size.Y/2)
+                        v.Box.Visible = true
+                        v.Name.Text = p.Name
+                        v.Name.Position = Vector2.new(pos.X, pos.Y - size.Y/2 - 16)
+                        v.Name.Visible = true
+                    else
+                        v.Box.Visible = false
+                        v.Name.Visible = false
+                    end
                 else
-                    box.Visible = false
-                    nameText.Visible = false
-                end
-            else
-                if Settings.ESP.ActiveDrawings[player] then
-                    Settings.ESP.ActiveDrawings[player].Box.Visible = false
-                    Settings.ESP.ActiveDrawings[player].Name.Visible = false
+                    if Settings.ESP.Cache[p] then
+                        Settings.ESP.Cache[p].Box.Visible = false
+                        Settings.ESP.Cache[p].Name.Visible = false
+                    end
                 end
             end
         end
     end
 end)
-
--------------------------------------------------------------------
--- ИНИЦИАЛИЗАЦИЯ КНОПОК МЕНЮ
--------------------------------------------------------------------
-CreateButton("Aimbot", 55, function(state) 
-    Settings.Aimbot.Enabled = state
-    AimFloatBtn.Visible = state
-    if not state then 
-        AimActive = false
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
-        AimFloatBtn.Text = "🎯 AIM: OFF"
-        Settings.Aimbot.LockedTarget = nil
-    end
-end)
-
-CreateButton("ESP (Boxes + Names)", 110, function(state) ToggleESP(state) end)
-CreateButton("Noclip", 165, function(state) Settings.Noclip.Enabled = state end)
-
-print("COCITESCRIPT Cyber Hub успешно запущен!")
