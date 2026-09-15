@@ -1,4 +1,4 @@
--- COCITESCRIPT | Ultimate Mobile Hub (Clean & Fixed)
+-- COCITESCRIPT | Ultimate Mobile Hub (Strictly 3 Buttons)
 if _G.CociteRunning then
     print("COCITESCRIPT уже запущен!")
     return
@@ -40,9 +40,7 @@ AuthFrame.Size = UDim2.new(0, 280, 0, 170)
 AuthFrame.Active = true
 AuthFrame.Draggable = true
 
-local AuthCorner = Instance.new("UICorner", AuthFrame)
-AuthCorner.CornerRadius = UDim.new(0, 10)
-
+Instance.new("UICorner", AuthFrame).CornerRadius = UDim.new(0, 10)
 local AuthStroke = Instance.new("UIStroke", AuthFrame)
 AuthStroke.Color = Color3.fromRGB(120, 40, 200)
 AuthStroke.Thickness = 2
@@ -97,8 +95,8 @@ ToggleStroke.Thickness = 2
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name = "MainFrame"
 MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 25)
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
-MainFrame.Size = UDim2.new(0, 350, 0, 215) -- Компактный размер под 3 кнопки
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -115)
+MainFrame.Size = UDim2.new(0, 350, 0, 215)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -324,7 +322,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- ИНИЦИАЛИЗАЦИЯ КНОПОК В МЕНЮ (ТОЛЬКО 3 ШТУКИ)
+-- ИНИЦИАЛИЗАЦИЯ КНОПОК В МЕНЮ (СТРОГО 3 ШТУКИ)
 -------------------------------------------------------------------
 CreateButton("Aimbot", 50, function(state) 
     Settings.Aimbot.Enabled = state
@@ -340,4 +338,4 @@ end)
 CreateButton("ESP (Boxes + Names)", 105, function(state) ToggleESP(state) end)
 CreateButton("Noclip", 160, function(state) Settings.Noclip.Enabled = state end)
 
-print("COCITESCRIPT Hub успешно загружен без флая!")
+print("COCITESCRIPT Hub успешно загружен!")
