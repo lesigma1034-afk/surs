@@ -1,4 +1,4 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (Fixed Stable KillAura + Whitelist)
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Full Hub + Free-Camera Whitelist KillAura)
 if _G.CociteRunning then
     return
 end
@@ -7,7 +7,6 @@ _G.CociteRunning = true
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
@@ -17,11 +16,12 @@ local Settings = {
         LockedTarget = nil,
         FOV = 250,
         KillAura = false,
-        KillAuraRange = 150, -- Радиус киллауры 150
+        KillAuraRange = 25, -- Радиус киллауры для ближнего боя (в Da Hood больше 25 ставить бессмысленно для урона)
     },
     Whitelist = {
-        -- Сюда вписывай ники тех, кого киллаура не должна трогать:
+        -- Сюда вписывай ники тех, кого киллаура не должна трогать ни при каких условиях:
         -- ["ТвойДруг"] = true,
+        -- ["ДругойТип"] = true,
     },
     ESP = {
         Enabled = false,
@@ -36,7 +36,7 @@ local Settings = {
 local function IsValidTarget(player)
     if player == LocalPlayer or not player.Character then return false end
     
-    -- Проверка белого листа (по нику и UserId)
+    -- Жесткая проверка белого листа (по нику и по UserId)
     if Settings.Whitelist[player.Name] or Settings.Whitelist[player.UserId] then
         return false
     end
@@ -423,7 +423,7 @@ AimFloatBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Обычный Аимбот
+-- Обычный Аимбот (с залочкой по кнопке)
 RunService.RenderStepped:Connect(function()
     if Settings.Aimbot.Enabled and AimActive then
         local target = Settings.Aimbot.LockedTarget
@@ -438,39 +438,33 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- РАБОЧАЯ СТАБИЛЬНАЯ КИЛЛАУРА (Дистанция 150, бьет ближайшего без дергания камеры)
-RunService.RenderStepped:Connect(function()
+-- НАСТОЯЩАЯ КИЛЛАУРА В ФОНЕ (Без сброса и лочания камеры, с учетом whitelist)
+RunService.Heartbeat:Connect(function()
     if Settings.Aimbot.KillAura then
         local char = LocalPlayer.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hrp then
-            local closestTarget = nil
-            local shortestDist = Settings.Aimbot.KillAuraRange
+            local tool = char:FindFirstChildOfClass("Tool")
+            local handle = tool and tool:FindFirstChild("Handle")
             
             for _, player in ipairs(Players:GetPlayers()) do
+                -- IsValidTarget проверяет белый лист, здоровье и КО
                 if IsValidTarget(player) then
                     local targetChar = player.Character
                     local targetHrp = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
                     if targetHrp then
                         local dist = (hrp.Position - targetHrp.Position).Magnitude
-                        if dist < shortestDist then
-                            shortestDist = dist
-                            closestTarget = player
+                        if dist <= Settings.Aimbot.KillAuraRange then
+                            pcall(function()
+                                if handle then
+                                    firetouchinterest(handle, targetHrp, 0)
+                                    firetouchinterest(handle, targetHrp, 1)
+                                end
+                                if tool then
+                                    tool:Activate()
+                                end
+                            end)
                         end
-                    end
-                end
-            end
-            
-            if closestTarget then
-                local targetHrp = closestTarget.Character:FindFirstChild("HumanoidRootPart")
-                if targetHrp then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHrp.Position + Vector3.new(0, 0.5, 0))
-                    local tool = char:FindFirstChildOfClass("Tool")
-                    if tool then
-                        pcall(function()
-                            tool:Activate()
-                            VirtualUser:Button1Down(Vector2.new(0, 0), Camera.CFrame)
-                        end)
                     end
                 end
             end
