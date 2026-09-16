@@ -1,4 +1,4 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup + Kill Aura)
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup)
 if _G.CociteRunning then
     return
 end
@@ -10,17 +10,11 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- ============================================================
--- SETTINGS
--- ============================================================
 local Settings = {
     Aimbot = {
         Enabled = false,
         LockedTarget = nil,
         FOV = 250,
-        KillAura = false,
-        AuraFOV = 150,
-        Whitelist = {},
     },
     ESP = {
         Enabled = false,
@@ -32,28 +26,14 @@ local Settings = {
     }
 }
 
--- ============================================================
--- TARGET VALIDATION (with Whitelist protection)
--- ============================================================
 local function IsValidTarget(player)
     if player == LocalPlayer or not player.Character then return false end
-
-    -- Whitelist check (Name + DisplayName, case-insensitive)
-    local wl = Settings.Aimbot.Whitelist
-    if wl then
-        local lname = player.Name:lower()
-        local dname = (player.DisplayName or ""):lower()
-        if wl[lname] or wl[dname] then
-            return false
-        end
-    end
-
     local char = player.Character
     local humanoid = char:FindFirstChild("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
-
+    
     if not humanoid or humanoid.Health <= 0 or not hrp then return false end
-
+    
     local bodyEffects = char:FindFirstChild("BodyEffects")
     if bodyEffects then
         local ko = bodyEffects:FindFirstChild("K.O") or bodyEffects:FindFirstChild("KO")
@@ -61,13 +41,10 @@ local function IsValidTarget(player)
             return false
         end
     end
-
+    
     return true
 end
 
--- ============================================================
--- GUI ROOT
--- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CociteCyberGui"
 pcall(function()
@@ -78,9 +55,6 @@ if not ScreenGui.Parent then
 end
 ScreenGui.ResetOnSpawn = false
 
--- ============================================================
--- AUTH FRAME
--- ============================================================
 local AuthFrame = Instance.new("Frame", ScreenGui)
 AuthFrame.BackgroundColor3 = Color3.fromRGB(10, 8, 16)
 AuthFrame.Position = UDim2.new(0.5, -170, 0.5, -130)
@@ -182,7 +156,6 @@ TweenService:Create(AuthFrame, tweenInfo, {BackgroundTransparency = 0}):Play()
 TweenService:Create(AuthStroke, tweenInfo, {Transparency = 0}):Play()
 TweenService:Create(AuthHeader, tweenInfo, {BackgroundTransparency = 0}):Play()
 TweenService:Create(AuthTitle, tweenInfo, {TextTransparency = 0}):Play()
-WelcomeLabel.TextTransparency = 1
 TweenService:Create(WelcomeLabel, tweenInfo, {TextTransparency = 0}):Play()
 TweenService:Create(InputContainer, tweenInfo, {BackgroundTransparency = 0}):Play()
 TweenService:Create(TextBox, tweenInfo, {TextTransparency = 0}):Play()
@@ -200,9 +173,6 @@ PasteBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ============================================================
--- FLOATING TOGGLE BUTTON
--- ============================================================
 local ToggleButton = Instance.new("ImageButton", ScreenGui)
 ToggleButton.Name = "CociteToggleBtn"
 ToggleButton.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
@@ -214,14 +184,11 @@ ToggleButton.Draggable = true
 ToggleButton.Image = "rbxassetid://6034287592"
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
 
--- ============================================================
--- MAIN FRAME
--- ============================================================
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name = "MainFrame"
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
-MainFrame.Position = UDim2.new(0.5, -190, 0.5, -160)
-MainFrame.Size = UDim2.new(0, 380, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -190, 0.5, -140)
+MainFrame.Size = UDim2.new(0, 380, 0, 280)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -233,351 +200,357 @@ MainStroke.Color = Color3.fromRGB(140, 40, 255)
 MainStroke.Thickness = 2.5
 MainStroke.Transparency = 1
 
--- Header
 local Header = Instance.new("Frame", MainFrame)
-Header.Size = UDim2.new(1, 0, 0, 44)
-Header.BackgroundColor3 = Color3.fromRGB(22, 16, 36)
-Header.BackgroundTransparency = 0.15
+Header.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+Header.Size = UDim2.new(1, 0, 0, 42)
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 14)
 
-local HeaderTitle = Instance.new("TextLabel", Header)
-HeaderTitle.BackgroundTransparency = 1
-HeaderTitle.Position = UDim2.new(0, 14, 0, 0)
-HeaderTitle.Size = UDim2.new(1, -60, 1, 0)
-HeaderTitle.Font = Enum.Font.GothamBold
-HeaderTitle.Text = "🛡️ COCITESCRIPT"
-HeaderTitle.TextColor3 = Color3.fromRGB(220, 180, 255)
-HeaderTitle.TextSize = 14
-HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+local Title = Instance.new("TextLabel", Header)
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 16, 0, 0)
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "⚡ COCITESCRIPT | DA HOOD HUB ⚡"
+Title.TextColor3 = Color3.fromRGB(210, 160, 255)
+Title.TextSize = 13
+Title.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", Header)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(60, 20, 60)
-CloseBtn.Position = UDim2.new(1, -38, 0.5, -12)
-CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 45, 65)
+CloseBtn.Position = UDim2.new(1, -34, 0.5, -11)
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Text = "✕"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 200, 255)
-CloseBtn.TextSize = 12
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 11
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
--- Tab bar
-local TabContainer = Instance.new("Frame", MainFrame)
-TabContainer.Size = UDim2.new(1, -20, 0, 34)
-TabContainer.Position = UDim2.new(0, 10, 0, 52)
-TabContainer.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
-TabContainer.BackgroundTransparency = 0.1
-Instance.new("UICorner", TabContainer).CornerRadius = UDim.new(0, 8)
-
-local AimbotTab = Instance.new("TextButton", TabContainer)
-AimbotTab.Size = UDim2.new(0.5, -4, 1, -4)
-AimbotTab.Position = UDim2.new(0, 2, 0, 2)
-AimbotTab.BackgroundColor3 = Color3.fromRGB(130, 35, 235)
-AimbotTab.Font = Enum.Font.GothamBold
-AimbotTab.Text = "AIMBOT"
-AimbotTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-AimbotTab.TextSize = 12
-Instance.new("UICorner", AimbotTab).CornerRadius = UDim.new(0, 6)
-
-local ESPTab = Instance.new("TextButton", TabContainer)
-ESPTab.Size = UDim2.new(0.5, -4, 1, -4)
-ESPTab.Position = UDim2.new(0.5, 0, 0, 2)
-ESPTab.BackgroundColor3 = Color3.fromRGB(30, 22, 46)
-ESPTab.Font = Enum.Font.GothamBold
-ESPTab.Text = "ESP"
-ESPTab.TextColor3 = Color3.fromRGB(180, 160, 220)
-ESPTab.TextSize = 12
-Instance.new("UICorner", ESPTab).CornerRadius = UDim.new(0, 6)
-
--- Pages
-local PageHolder = Instance.new("Frame", MainFrame)
-PageHolder.Size = UDim2.new(1, 0, 1, -96)
-PageHolder.Position = UDim2.new(0, 0, 0, 96)
-PageHolder.BackgroundTransparency = 1
-
--- ============================================================
--- CREATE TOGGLE (helper)
--- ============================================================
-local function CreateToggle(parent, text, defaultState, callback)
-    local ToggleFrame = Instance.new("Frame", parent)
-    ToggleFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-    ToggleFrame.Size = UDim2.new(1, -20, 0, 34)
-    ToggleFrame.BackgroundTransparency = 0.1
-    Instance.new("UICorner", ToggleFrame).CornerRadius = UDim.new(0, 8)
-
-    local Label = Instance.new("TextLabel", ToggleFrame)
-    Label.BackgroundTransparency = 1
-    Label.Position = UDim2.new(0, 12, 0, 0)
-    Label.Size = UDim2.new(1, -70, 1, 0)
-    Label.Font = Enum.Font.GothamSemibold
-    Label.Text = text
-    Label.TextColor3 = Color3.fromRGB(220, 210, 240)
-    Label.TextSize = 12
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-
-    local Btn = Instance.new("TextButton", ToggleFrame)
-    Btn.BackgroundColor3 = defaultState and Color3.fromRGB(130, 35, 235) or Color3.fromRGB(40, 30, 60)
-    Btn.Position = UDim2.new(1, -54, 0.5, -10)
-    Btn.Size = UDim2.new(0, 42, 0, 20)
-    Btn.Text = ""
-    Btn.AutoButtonColor = false
-    Instance.new("UICorner", Btn).CornerRadius = UDim.new(1, 0)
-
-    local Dot = Instance.new("Frame", Btn)
-    Dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Dot.Size = UDim2.new(0, 16, 0, 16)
-    Dot.Position = defaultState and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-    Instance.new("UICorner", Dot).CornerRadius = UDim.new(1, 0)
-
-    local state = defaultState
-    Btn.MouseButton1Click:Connect(function()
-        state = not state
-        TweenService:Create(Btn, TweenInfo.new(0.18), {
-            BackgroundColor3 = state and Color3.fromRGB(130, 35, 235) or Color3.fromRGB(40, 30, 60)
-        }):Play()
-        TweenService:Create(Dot, TweenInfo.new(0.18), {
-            Position = state and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-        }):Play()
-        if callback then callback(state) end
-    end)
-
-    return ToggleFrame, Btn, Label
-end
-
--- ============================================================
--- AIMBOT PAGE
--- ============================================================
-local AimbotPage = Instance.new("ScrollingFrame", PageHolder)
-AimbotPage.Size = UDim2.new(1, 0, 1, 0)
-AimbotPage.BackgroundTransparency = 1
-AimbotPage.BorderSizePixel = 0
-AimbotPage.ScrollBarThickness = 3
-AimbotPage.CanvasSize = UDim2.new(0, 0, 0, 400)
-AimbotPage.Visible = true
-
--- 1) Enable aimbot
-local AimToggle = CreateToggle(AimbotPage, "Aimbot Enabled", Settings.Aimbot.Enabled, function(state)
-    Settings.Aimbot.Enabled = state
-    if not state then Settings.Aimbot.LockedTarget = nil end
-end)
-AimToggle.Position = UDim2.new(0, 10, 0, 8)
-
--- 2) Kill Aura toggle + gear
-local KaFrame, KaBtn = CreateToggle(AimbotPage, "Kill Aura", Settings.Aimbot.KillAura, function(state)
-    Settings.Aimbot.KillAura = state
-end)
-KaFrame.Position = UDim2.new(0, 10, 0, 48)
--- shift the toggle switch left to make room for the gear button
-KaBtn.Position = UDim2.new(1, -90, 0.5, -10)
-
--- gear button INSIDE the Kill Aura row
-local GearBtn = Instance.new("TextButton", KaFrame)
-GearBtn.Name = "GearBtn"
-GearBtn.Size = UDim2.new(0, 24, 0, 24)
-GearBtn.Position = UDim2.new(1, -30, 0.5, -12)  -- exactly as requested
-GearBtn.BackgroundColor3 = Color3.fromRGB(40, 30, 60)
-GearBtn.Font = Enum.Font.GothamBold
-GearBtn.Text = "⚙️"
-GearBtn.TextSize = 14
-GearBtn.TextColor3 = Color3.fromRGB(230, 200, 255)
-GearBtn.AutoButtonColor = true
-Instance.new("UICorner", GearBtn).CornerRadius = UDim.new(0, 6)
-
--- 3) Whitelist input container (hidden by default)
-local WhitelistPanel = Instance.new("Frame", AimbotPage)
-WhitelistPanel.Name = "WhitelistPanel"
-WhitelistPanel.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-WhitelistPanel.Position = UDim2.new(0, 10, 0, 88)
-WhitelistPanel.Size = UDim2.new(1, -20, 0, 40)
-WhitelistPanel.Visible = false
-WhitelistPanel.BackgroundTransparency = 0.1
-Instance.new("UICorner", WhitelistPanel).CornerRadius = UDim.new(0, 8)
-
-local WLBox = Instance.new("TextBox", WhitelistPanel)
-WLBox.BackgroundColor3 = Color3.fromRGB(12, 9, 20)
-WLBox.Position = UDim2.new(0, 6, 0.5, -14)
-WLBox.Size = UDim2.new(1, -110, 0, 28)
-WLBox.Font = Enum.Font.GothamSemibold
-WLBox.PlaceholderText = "Ник друга..."
-WLBox.Text = ""
-WLBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-WLBox.PlaceholderColor3 = Color3.fromRGB(120, 110, 150)
-WLBox.TextSize = 12
-WLBox.TextXAlignment = Enum.TextXAlignment.Left
-WLBox.ClearTextOnFocus = false
-Instance.new("UICorner", WLBox).CornerRadius = UDim.new(0, 6)
-local WLPad = Instance.new("UIPadding", WLBox)
-WLPad.PaddingLeft = UDim.new(0, 8)
-
-local WLAddBtn = Instance.new("TextButton", WhitelistPanel)
-WLAddBtn.BackgroundColor3 = Color3.fromRGB(130, 35, 235)
-WLAddBtn.Position = UDim2.new(1, -100, 0.5, -14)
-WLAddBtn.Size = UDim2.new(0, 94, 0, 28)
-WLAddBtn.Font = Enum.Font.GothamBold
-WLAddBtn.Text = "ДОБАВИТЬ"
-WLAddBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-WLAddBtn.TextSize = 11
-Instance.new("UICorner", WLAddBtn).CornerRadius = UDim.new(0, 6)
-
-WLAddBtn.MouseButton1Click:Connect(function()
-    local nick = (WLBox.Text or ""):gsub("%s+", "")
-    if nick == "" then return end
-    nick = nick:lower()
-    Settings.Aimbot.Whitelist[nick] = true
-    WLBox.Text = ""
-end)
-
-WLBox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local nick = (WLBox.Text or ""):gsub("%s+", "")
-        if nick ~= "" then
-            Settings.Aimbot.Whitelist[nick:lower()] = true
-            WLBox.Text = ""
-        end
-    end
-end)
-
--- gear button toggles whitelist panel visibility
-GearBtn.MouseButton1Click:Connect(function()
-    WhitelistPanel.Visible = not WhitelistPanel.Visible
-end)
-
--- ============================================================
--- ESP PAGE (toggles only; logic omitted to keep Aimbot focused)
--- ============================================================
-local ESPPage = Instance.new("ScrollingFrame", PageHolder)
-ESPPPage = ESPPage
-ESPPPage.Size = UDim2.new(1, 0, 1, 0)
-ESPPPage.BackgroundTransparency = 1
-ESPPPage.BorderSizePixel = 0
-ESPPPage.ScrollBarThickness = 3
-ESPPPage.CanvasSize = UDim2.new(0, 0, 0, 400)
-ESPPPage.Visible = false
-
-local EspToggle = CreateToggle(ESPPPage, "ESP Enabled", Settings.ESP.Enabled, function(state)
-    Settings.ESP.Enabled = state
-end)
-EspToggle.Position = UDim2.new(0, 10, 0, 8)
-
-local BoxesToggle = CreateToggle(ESPPage, "Boxes", Settings.ESP.Boxes, function(state)
-    Settings.ESP.Boxes = state
-end)
-BoxesToggle.Position = UDim2.new(0, 10, 0, 48)
-
-local ChamsToggle = CreateToggle(ESPPPage, "Chams", Settings.ESP.Chams, function(state)
-    Settings.ESP.Chams = state
-end)
-ChamsToggle.Position = UDim2.new(0, 10, 0, 88)
-
-local NamesToggle = CreateToggle(ESPPPage, "Names", Settings.ESP.Names, function(state)
-    Settings.ESP.Names = state
-end)
-NamesToggle.Position = UDim2.new(0, 10, 0, 128)
-
--- ============================================================
--- TAB SWITCHING
--- ============================================================
-local function selectTab(isAimbot)
-    if isAimbot then
-        AimbotPage.Visible = true
-        ESPPage.Visible = false
-        AimbotTab.BackgroundColor3 = Color3.fromRGB(130, 35, 235)
-        AimbotTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ESPTab.BackgroundColor3 = Color3.fromRGB(30, 22, 46)
-        ESPTab.TextColor3 = Color3.fromRGB(180, 160, 220)
-    else
-        AimbotPage.Visible = false
-        ESPPage.Visible = true
-        ESPTab.BackgroundColor3 = Color3.fromRGB(130, 35, 235)
-        ESPTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-        AimbotTab.BackgroundColor3 = Color3.fromRGB(30, 22, 46)
-        AimbotTab.TextColor3 = Color3.fromRGB(180, 160, 220)
-    end
-end
-AimbotTab.MouseButton1Click:Connect(function() selectTab(true) end)
-ESPTab.MouseButton1Click:Connect(function() selectTab(false) end)
-
--- ============================================================
--- SHOW / HIDE LOGIC
--- ============================================================
-LoginBtn.MouseButton1Click:Connect(function()
-    if TextBox.Text == "" then
-        StatusLabel.Text = "Статус: Введите ключ!"
-        return
-    end
-    StatusLabel.Text = "Статус: Успешная авторизация!"
-    TweenService:Create(AuthFrame, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(AuthStroke, TweenInfo.new(0.4), {Transparency = 1}):Play()
-    task.wait(0.45)
-    AuthFrame.Visible = false
-    ToggleButton.Visible = true
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
 end)
 
 ToggleButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
-    if MainFrame.Visible then
-        MainFrame.BackgroundTransparency = 1
-        MainStroke.Transparency = 1
-        TweenService:Create(MainFrame, TweenInfo.new(0.3), {BackgroundTransparency = 0.05}):Play()
-        TweenService:Create(MainStroke, TweenInfo.new(0.3), {Transparency = 0}):Play()
+end)
+
+local TabBar = Instance.new("Frame", MainFrame)
+TabBar.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
+TabBar.Position = UDim2.new(0, 15, 0, 50)
+TabBar.Size = UDim2.new(1, -30, 0, 36)
+Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 8)
+
+local TabListLayout = Instance.new("UIListLayout", TabBar)
+TabListLayout.FillDirection = Enum.FillDirection.Horizontal
+TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+TabListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+TabListLayout.Padding = UDim.new(0, 8)
+
+local ContentContainer = Instance.new("Frame", MainFrame)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Position = UDim2.new(0, 15, 0, 96)
+ContentContainer.Size = UDim2.new(1, -30, 1, -106)
+
+local Tabs = {}
+local TabButtons = {}
+
+local function CreateTab(tabName)
+    local tabBtn = Instance.new("TextButton", TabBar)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
+    tabBtn.Size = UDim2.new(0, 165, 0, 28)
+    tabBtn.Font = Enum.Font.GothamBold
+    tabBtn.Text = tabName
+    tabBtn.TextColor3 = Color3.fromRGB(150, 140, 170)
+    tabBtn.TextSize = 11
+    Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 6)
+
+    local pageFrame = Instance.new("Frame", ContentContainer)
+    pageFrame.BackgroundTransparency = 1
+    pageFrame.Size = UDim2.new(1, 0, 1, 0)
+    pageFrame.Visible = false
+
+    local pageList = Instance.new("UIListLayout", pageFrame)
+    pageList.SortOrder = Enum.SortOrder.LayoutOrder
+    pageList.Padding = UDim.new(0, 6)
+
+    tabBtn.MouseButton1Click:Connect(function()
+        for name, page in pairs(Tabs) do
+            page.Visible = false
+            TabButtons[name].BackgroundColor3 = Color3.fromRGB(26, 20, 40)
+            TabButtons[name].TextColor3 = Color3.fromRGB(150, 140, 170)
+        end
+        pageFrame.Visible = true
+        tabBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+        tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+
+    Tabs[tabName] = pageFrame
+    TabButtons[tabName] = tabBtn
+    return pageFrame
+end
+
+local AimbotPage = CreateTab("AIMBOT")
+local ESPPage = CreateTab("ESP")
+
+Tabs["AIMBOT"].Visible = true
+TabButtons["AIMBOT"].BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+TabButtons["AIMBOT"].TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local function CreateToggle(parent, text, defaultState, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.BackgroundColor3 = defaultState and Color3.fromRGB(110, 25, 200) or Color3.fromRGB(20, 15, 32)
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Text = text .. (defaultState and ": ON" or ": OFF")
+    btn.TextColor3 = defaultState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 180, 210)
+    btn.TextSize = 12
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(90, 40, 160)
+    stroke.Thickness = 1.2
+    
+    local active = defaultState
+    btn.MouseButton1Click:Connect(function()
+        active = not active
+        if active then
+            btn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Text = text .. ": ON"
+        else
+            btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+            btn.TextColor3 = Color3.fromRGB(190, 180, 210)
+            btn.Text = text .. ": OFF"
+        end
+        callback(active)
+    end)
+    return btn
+end
+
+LoginBtn.MouseButton1Click:Connect(function()
+    StatusLabel.Text = "Статус: Проверка ключа..."
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+    task.wait(0.2)
+    
+    if TextBox.Text == "123" then
+        StatusLabel.Text = "Статус: Успешно!"
+        StatusLabel.TextColor3 = Color3.fromRGB(80, 255, 140)
+        task.wait(0.3)
+        
+        TweenService:Create(AuthFrame, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+        task.wait(0.4)
+        AuthFrame:Destroy()
+        
+        ToggleButton.Visible = true
+        MainFrame.Visible = true
+        TweenService:Create(MainFrame, TweenInfo.new(0.5), {BackgroundTransparency = 0}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(0.5), {Transparency = 0}):Play()
+    else
+        StatusLabel.Text = "Статус: ❌ Неверный ключ!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 70, 90)
     end
 end)
 
-CloseBtn.MouseButton1Click:Connect(function()
-    TweenService:Create(MainFrame, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(MainStroke, TweenInfo.new(0.25), {Transparency = 1}):Play()
-    task.wait(0.26)
-    MainFrame.Visible = false
-end)
+local AimFloatBtn = Instance.new("TextButton", ScreenGui)
+AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+AimFloatBtn.Position = UDim2.new(0.8, 0, 0.4, 0)
+AimFloatBtn.Size = UDim2.new(0, 100, 0, 46)
+AimFloatBtn.Font = Enum.Font.GothamBold
+AimFloatBtn.Text = "🎯 AIM: OFF"
+AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+AimFloatBtn.TextSize = 12
+AimFloatBtn.Visible = false
+AimFloatBtn.Active = true
+AimFloatBtn.Draggable = true
+Instance.new("UICorner", AimFloatBtn).CornerRadius = UDim.new(0, 10)
 
--- ============================================================
--- KILL AURA LOGIC (RenderStepped)
--- ============================================================
-local lastActivate = 0
+local function GetTargetAimPosition(character)
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        return hrp.Position + Vector3.new(0, 0.75, 0)
+    end
+    return nil
+end
 
-RunService.RenderStepped:Connect(function(dt)
-    if not Settings.Aimbot.KillAura then return end
-
-    local character = LocalPlayer.Character
-    if not character then return end
-
-    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    local maxFov = Settings.Aimbot.AuraFOV or 150
-
-    local closest, closestDist = nil, maxFov
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if IsValidTarget(plr) then
-            local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+local function GetClosestToCenter()
+    local closestP = nil
+    local shortestDist = Settings.Aimbot.FOV
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if IsValidTarget(player) then
+            local aimPos = GetTargetAimPosition(player.Character)
+            if aimPos then
+                local pos, onScreen = Camera:WorldToViewportPoint(aimPos)
                 if onScreen then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                    if dist < closestDist then
-                        closestDist = dist
-                        closest = plr
+                    local magnitude = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                    if magnitude < shortestDist then
+                        shortestDist = magnitude
+                        closestP = player
                     end
                 end
             end
         end
     end
+    return closestP
+end
 
-    if closest then
-        local hrp = closest.Character and closest.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            -- Aim camera at target
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, hrp.Position)
+local AimActive = false
+AimFloatBtn.MouseButton1Click:Connect(function()
+    AimActive = not AimActive
+    if AimActive then
+        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+        AimFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        AimFloatBtn.Text = "🎯 AIM: ON"
+        Settings.Aimbot.LockedTarget = GetClosestToCenter()
+    else
+        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+        AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+        AimFloatBtn.Text = "🎯 AIM: OFF"
+        Settings.Aimbot.LockedTarget = nil
+    end
+end)
 
-            -- Fire if a tool is equipped
-            local tool = character:FindFirstChildOfClass("Tool")
-            if tool then
-                local now = tick()
-                if now - lastActivate >= 0.05 then
-                    lastActivate = now
-                    pcall(function()
-                        tool:Activate()
-                    end)
-                end
+RunService.RenderStepped:Connect(function()
+    if Settings.Aimbot.Enabled and AimActive then
+        local target = Settings.Aimbot.LockedTarget
+        if target and IsValidTarget(target) then
+            local aimPos = GetTargetAimPosition(target.Character)
+            if aimPos then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPos)
             end
+        else
+            Settings.Aimbot.LockedTarget = GetClosestToCenter()
         end
     end
+end)
+
+local function RemoveHighlight(player)
+    if Settings.ESP.ActiveHighlights[player] then
+        Settings.ESP.ActiveHighlights[player]:Destroy()
+        Settings.ESP.ActiveHighlights[player] = nil
+    end
+end
+
+local function ClearESP()
+    for _, objList in pairs(Settings.ESP.ActiveDrawings) do
+        for _, obj in pairs(objList) do
+            if obj then obj:Remove() end
+        end
+    end
+    Settings.ESP.ActiveDrawings = {}
+
+    for player, _ in pairs(Settings.ESP.ActiveHighlights) do
+        RemoveHighlight(player)
+    end
+end
+
+Players.PlayerRemoving:Connect(function(player)
+    if Settings.ESP.ActiveDrawings[player] then
+        for _, obj in pairs(Settings.ESP.ActiveDrawings[player]) do
+            if obj then obj:Remove() end
+        end
+        Settings.ESP.ActiveDrawings[player] = nil
+    end
+    RemoveHighlight(player)
+end)
+
+RunService.RenderStepped:Connect(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if Settings.ESP.Enabled and IsValidTarget(player) then
+            local char = player.Character
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            
+            if not Settings.ESP.ActiveDrawings[player] then
+                local box = Drawing.new("Square")
+                box.Visible = false
+                box.Color = Color3.fromRGB(180, 50, 255)
+                box.Thickness = 1.5
+                box.Filled = false
+                
+                local nameText = Drawing.new("Text")
+                nameText.Visible = false
+                nameText.Color = Color3.fromRGB(255, 255, 255)
+                nameText.Size = 13
+                nameText.Center = true
+                nameText.Outline = true
+                
+                Settings.ESP.ActiveDrawings[player] = {Box = box, Name = nameText}
+            end
+            
+            local visuals = Settings.ESP.ActiveDrawings[player]
+            local box, nameText = visuals.Box, visuals.Name
+            
+            if onScreen then
+                local scaleFactor = 300 / pos.Z
+                local size = Vector2.new(2, 3) * scaleFactor
+                box.Size = size
+                box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
+                box.Visible = Settings.ESP.Boxes
+                
+                nameText.Text = player.Name
+                nameText.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 18)
+                nameText.Visible = Settings.ESP.Names
+            else
+                box.Visible = false
+                nameText.Visible = false
+            end
+
+            if Settings.ESP.Chams then
+                if not Settings.ESP.ActiveHighlights[player] or Settings.ESP.ActiveHighlights[player].Parent ~= char then
+                    RemoveHighlight(player)
+                    local hl = Instance.new("Highlight")
+                    hl.Name = "CociteChams"
+                    hl.FillColor = Color3.fromRGB(150, 40, 255)
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.FillTransparency = 0.4
+                    hl.OutlineTransparency = 0
+                    hl.Adornee = char
+                    hl.Parent = char
+                    Settings.ESP.ActiveHighlights[player] = hl
+                else
+                    Settings.ESP.ActiveHighlights[player].Enabled = true
+                end
+            else
+                RemoveHighlight(player)
+            end
+        else
+            if Settings.ESP.ActiveDrawings[player] then
+                Settings.ESP.ActiveDrawings[player].Box.Visible = false
+                Settings.ESP.ActiveDrawings[player].Name.Visible = false
+            end
+            RemoveHighlight(player)
+        end
+    end
+end)
+
+CreateToggle(AimbotPage, "Aimbot Master", false, function(state)
+    Settings.Aimbot.Enabled = state
+    AimFloatBtn.Visible = state
+    if not state then 
+        AimActive = false
+        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+        AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+        AimFloatBtn.Text = "🎯 AIM: OFF"
+        Settings.Aimbot.LockedTarget = nil
+    end
+end)
+
+CreateToggle(ESPPage, "Master ESP", false, function(state)
+    Settings.ESP.Enabled = state
+    if not state then
+        ClearESP()
+    end
+end)
+
+CreateToggle(ESPPage, "Box ESP", true, function(state)
+    Settings.ESP.Boxes = state
+end)
+
+CreateToggle(ESPPage, "Chams ESP", true, function(state)
+    Settings.ESP.Chams = state
+end)
+
+CreateToggle(ESPPage, "Name ESP", true, function(state)
+    Settings.ESP.Names = state
 end)
