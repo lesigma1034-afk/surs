@@ -1,4 +1,4 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup)
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Legit + KillAura + Whitelist)
 if _G.CociteRunning then
     return
 end
@@ -15,6 +15,12 @@ local Settings = {
         Enabled = false,
         LockedTarget = nil,
         FOV = 250,
+        KillAura = false,
+        KillAuraRange = 150, -- Радиус легит киллауры
+    },
+    Whitelist = {
+        -- Сюда можно вписывать ники тех, кого киллаура и аим не должны трогать:
+        -- ["FriendName"] = true,
     },
     ESP = {
         Enabled = false,
@@ -28,6 +34,12 @@ local Settings = {
 
 local function IsValidTarget(player)
     if player == LocalPlayer or not player.Character then return false end
+    
+    -- Проверка белого листа
+    if Settings.Whitelist[player.Name] then
+        return false
+    end
+    
     local char = player.Character
     local humanoid = char:FindFirstChild("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -410,6 +422,7 @@ AimFloatBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Обычный Аимбот
 RunService.RenderStepped:Connect(function()
     if Settings.Aimbot.Enabled and AimActive then
         local target = Settings.Aimbot.LockedTarget
@@ -420,6 +433,45 @@ RunService.RenderStepped:Connect(function()
             end
         else
             Settings.Aimbot.LockedTarget = GetClosestToCenter()
+        end
+    end
+end)
+
+-- Киллаура (Авто-атака и автонаведение в радиусе 150)
+RunService.RenderStepped:Connect(function()
+    if Settings.Aimbot.KillAura then
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local closestTarget = nil
+            local shortestDist = Settings.Aimbot.KillAuraRange
+            
+            for _, player in ipairs(Players:GetPlayers()) do
+                if IsValidTarget(player) then
+                    local targetChar = player.Character
+                    local targetHrp = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+                    if targetHrp then
+                        local dist = (hrp.Position - targetHrp.Position).Magnitude
+                        if dist < shortestDist then
+                            shortestDist = dist
+                            closestTarget = player
+                        end
+                    end
+                end
+            end
+            
+            if closestTarget then
+                local targetHrp = closestTarget.Character:FindFirstChild("HumanoidRootPart")
+                if targetHrp then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHrp.Position + Vector3.new(0, 0.5, 0))
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    if tool then
+                        pcall(function()
+                            tool:Activate()
+                        end)
+                    end
+                end
+            end
         end
     end
 end)
@@ -534,6 +586,11 @@ CreateToggle(AimbotPage, "Aimbot Master", false, function(state)
         AimFloatBtn.Text = "🎯 AIM: OFF"
         Settings.Aimbot.LockedTarget = nil
     end
+end)
+
+-- Новая кнопка киллауры во вкладке AIMBOT
+CreateToggle(AimbotPage, "Kill Aura", false, function(state)
+    Settings.Aimbot.KillAura = state
 end)
 
 CreateToggle(ESPPage, "Master ESP", false, function(state)
