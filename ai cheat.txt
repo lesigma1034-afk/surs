@@ -1,4 +1,4 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup)
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Silent Aim Edition)
 if _G.CociteRunning then
     return
 end
@@ -23,6 +23,12 @@ local Settings = {
         Names = true,
         ActiveDrawings = {},
         ActiveHighlights = {}
+    },
+    SilentAim = {
+        Enabled = false,
+        FOV = 150,
+        HitPart = "Head", -- "Head" или "HumanoidRootPart"
+        ShowFOV = true
     }
 }
 
@@ -243,7 +249,7 @@ local TabListLayout = Instance.new("UIListLayout", TabBar)
 TabListLayout.FillDirection = Enum.FillDirection.Horizontal
 TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 TabListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-TabListLayout.Padding = UDim.new(0, 8)
+TabListLayout.Padding = UDim.new(0, 4)
 
 local ContentContainer = Instance.new("Frame", MainFrame)
 ContentContainer.BackgroundTransparency = 1
@@ -256,7 +262,7 @@ local TabButtons = {}
 local function CreateTab(tabName)
     local tabBtn = Instance.new("TextButton", TabBar)
     tabBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
-    tabBtn.Size = UDim2.new(0, 165, 0, 28)
+    tabBtn.Size = UDim2.new(0, 110, 0, 28)
     tabBtn.Font = Enum.Font.GothamBold
     tabBtn.Text = tabName
     tabBtn.TextColor3 = Color3.fromRGB(150, 140, 170)
@@ -290,6 +296,7 @@ end
 
 local AimbotPage = CreateTab("AIMBOT")
 local ESPPage = CreateTab("ESP")
+local SilentPage = CreateTab("SILENT")
 
 Tabs["AIMBOT"].Visible = true
 TabButtons["AIMBOT"].BackgroundColor3 = Color3.fromRGB(110, 25, 200)
@@ -423,6 +430,204 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+-- ==================== SILENT AIM LOGIC & UI ====================
+local SilentFOVCircle = Drawing.new("Circle")
+SilentFOVCircle.Visible = false
+SilentFOVCircle.Thickness = 1.5
+SilentFOVCircle.Color = Color3.fromRGB(180, 50, 255)
+SilentFOVCircle.Filled = false
+SilentFOVCircle.Radius = Settings.SilentAim.FOV
+
+RunService.RenderStepped:Connect(function()
+    if Settings.SilentAim.Enabled and Settings.SilentAim.ShowFOV then
+        SilentFOVCircle.Visible = true
+        SilentFOVCircle.Radius = Settings.SilentAim.FOV
+        SilentFOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    else
+        SilentFOVCircle.Visible = false
+    end
+end)
+
+local function GetClosestSilentTarget()
+    local closestP = nil
+    local shortestDist = Settings.SilentAim.FOV
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if IsValidTarget(player) then
+            local char = player.Character
+            local part = char:FindFirstChild(Settings.SilentAim.HitPart) or char:FindFirstChild("HumanoidRootPart")
+            if part then
+                local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local magnitude = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                    if magnitude < shortestDist then
+                        shortestDist = magnitude
+                        closestP = player
+                    end
+                end
+            end
+        end
+    end
+    return closestP
+end
+
+pcall(function()
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldNamecall = mt.__namecall
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        if Settings.SilentAim.Enabled and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList") then
+            local target = GetClosestSilentTarget()
+            if target and target.Character then
+                local part = target.Character:FindFirstChild(Settings.SilentAim.HitPart) or target.Character:FindFirstChild("HumanoidRootPart")
+                if part and args[1] then
+                    local origin = args[1].Origin
+                    local direction = (part.Position - origin).Unit * 1000
+                    args[1] = Ray.new(origin, direction)
+                    return oldNamecall(self, unpack(args))
+                end
+            end
+        elseif Settings.SilentAim.Enabled and method == "Raycast" then
+            local target = GetClosestSilentTarget()
+            if target and target.Character then
+                local part = target.Character:FindFirstChild(Settings.SilentAim.HitPart) or target.Character:FindFirstChild("HumanoidRootPart")
+                if part and args[1] and args[2] then
+                    local origin = args[1]
+                    local direction = (part.Position - origin).Unit * 1000
+                    args[2] = direction
+                    return oldNamecall(self, unpack(args))
+                end
+            end
+        end
+        return oldNamecall(self, ...)
+    end)
+end)
+
+-- Создаем контейнер для Silent Aim с кнопкой-шестеренкой
+local SilentContainer = Instance.new("Frame", SilentPage)
+SilentContainer.BackgroundTransparency = 1
+SilentContainer.Size = UDim2.new(1, 0, 0, 38)
+
+local SilentToggleBtn = Instance.new("TextButton", SilentContainer)
+SilentToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+SilentToggleBtn.Size = UDim2.new(1, -44, 1, 0)
+SilentToggleBtn.Font = Enum.Font.GothamSemibold
+SilentToggleBtn.Text = "Silent Aim: OFF"
+SilentToggleBtn.TextColor3 = Color3.fromRGB(190, 180, 210)
+SilentToggleBtn.TextSize = 12
+Instance.new("UICorner", SilentToggleBtn).CornerRadius = UDim.new(0, 8)
+local stStroke = Instance.new("UIStroke", SilentToggleBtn)
+stStroke.Color = Color3.fromRGB(90, 40, 160)
+stStroke.Thickness = 1.2
+
+local GearBtn = Instance.new("TextButton", SilentContainer)
+GearBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
+GearBtn.Position = UDim2.new(1, -38, 0, 0)
+GearBtn.Size = UDim2.new(0, 38, 1, 0)
+GearBtn.Font = Enum.Font.GothamBold
+GearBtn.Text = "⚙️"
+GearBtn.TextColor3 = Color3.fromRGB(220, 180, 255)
+GearBtn.TextSize = 14
+Instance.new("UICorner", GearBtn).CornerRadius = UDim.new(0, 8)
+local gStroke = Instance.new("UIStroke", GearBtn)
+gStroke.Color = Color3.fromRGB(90, 40, 160)
+gStroke.Thickness = 1.2
+
+local silentActive = false
+SilentToggleBtn.MouseButton1Click:Connect(function()
+    silentActive = not silentActive
+    Settings.SilentAim.Enabled = silentActive
+    if silentActive then
+        SilentToggleBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+        SilentToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        SilentToggleBtn.Text = "Silent Aim: ON"
+    else
+        SilentToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+        SilentToggleBtn.TextColor3 = Color3.fromRGB(190, 180, 210)
+        SilentToggleBtn.Text = "Silent Aim: OFF"
+    end
+end)
+
+-- Меню настроек (выдвижное по шестеренке)
+local SettingsPanel = Instance.new("Frame", SilentPage)
+SettingsPanel.BackgroundColor3 = Color3.fromRGB(16, 12, 26)
+SettingsPanel.Size = UDim2.new(1, 0, 0, 110)
+SettingsPanel.Visible = false
+Instance.new("UICorner", SettingsPanel).CornerRadius = UDim.new(0, 8)
+local spStroke = Instance.new("UIStroke", SettingsPanel)
+spStroke.Color = Color3.fromRGB(140, 40, 255)
+spStroke.Thickness = 1.2
+
+local spLayout = Instance.new("UIListLayout", SettingsPanel)
+spLayout.SortOrder = Enum.SortOrder.LayoutOrder
+spLayout.Padding = UDim.new(0, 6)
+spLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- Лейбл FOV
+local FOVLabel = Instance.new("TextLabel", SettingsPanel)
+FOVLabel.BackgroundTransparency = 1
+FOVLabel.Size = UDim2.new(1, -16, 0, 24)
+FOVLabel.Font = Enum.Font.GothamBold
+FOVLabel.Text = "FOV: " .. Settings.SilentAim.FOV
+FOVLabel.TextColor3 = Color3.fromRGB(210, 160, 255)
+FOVLabel.TextSize = 11
+FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Кнопки изменения FOV
+local FOVControlFrame = Instance.new("Frame", SettingsPanel)
+FOVControlFrame.BackgroundTransparency = 1
+FOVControlFrame.Size = UDim2.new(1, -16, 0, 30)
+local fovLayout = Instance.new("UIListLayout", FOVControlFrame)
+fovLayout.FillDirection = Enum.FillDirection.Horizontal
+fovLayout.Padding = UDim.new(0, 6)
+
+local function CreateFOVBtn(text, delta)
+    local btn = Instance.new("TextButton", FOVControlFrame)
+    btn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
+    btn.Size = UDim2.new(0.48, 0, 1, 0)
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(200, 180, 230)
+    btn.TextSize = 11
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    
+    btn.MouseButton1Click:Connect(function()
+        Settings.SilentAim.FOV = math.clamp(Settings.SilentAim.FOV + delta, 50, 500)
+        FOVLabel.Text = "FOV: " .. Settings.SilentAim.FOV
+    end)
+end
+CreateFOVBtn("[-] FOV (-25)", -25)
+CreateFOVBtn("[+] FOV (+25)", 25)
+
+-- Кнопка выбора хитбокта (Голова / Торс)
+local PartToggleBtn = Instance.new("TextButton", SettingsPanel)
+PartToggleBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
+PartToggleBtn.Size = UDim2.new(1, -16, 0, 30)
+PartToggleBtn.Font = Enum.Font.GothamBold
+PartToggleBtn.Text = "Цель: Голова (Head)"
+PartToggleBtn.TextColor3 = Color3.fromRGB(200, 180, 230)
+PartToggleBtn.TextSize = 11
+Instance.new("UICorner", PartToggleBtn).CornerRadius = UDim.new(0, 6)
+
+PartToggleBtn.MouseButton1Click:Connect(function()
+    if Settings.SilentAim.HitPart == "Head" then
+        Settings.SilentAim.HitPart = "HumanoidRootPart"
+        PartToggleBtn.Text = "Цель: Торс (HRP)"
+    else
+        Settings.SilentAim.HitPart = "Head"
+        PartToggleBtn.Text = "Цель: Голова (Head)"
+    end
+end)
+
+GearBtn.MouseButton1Click:Connect(function()
+    SettingsPanel.Visible = not SettingsPanel.Visible
+end)
+-- =============================================================
 
 local function RemoveHighlight(player)
     if Settings.ESP.ActiveHighlights[player] then
