@@ -1,4 +1,4 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (Full Hub + Free-Camera Whitelist KillAura)
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Fixed KillAura + Real Gun Support + GUI Whitelist)
 if _G.CociteRunning then
     return
 end
@@ -7,8 +7,11 @@ _G.CociteRunning = true
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+local MainEvent = ReplicatedStorage:FindFirstChild("MainEvent")
 
 local Settings = {
     Aimbot = {
@@ -16,12 +19,10 @@ local Settings = {
         LockedTarget = nil,
         FOV = 250,
         KillAura = false,
-        KillAuraRange = 25, -- Радиус киллауры для ближнего боя (в Da Hood больше 25 ставить бессмысленно для урона)
+        KillAuraRange = 100, -- Радиус для пушек/милишников
     },
     Whitelist = {
-        -- Сюда вписывай ники тех, кого киллаура не должна трогать ни при каких условиях:
-        -- ["ТвойДруг"] = true,
-        -- ["ДругойТип"] = true,
+        -- Сюда можно добавлять через код или через новый GUI-раздел
     },
     ESP = {
         Enabled = false,
@@ -36,7 +37,7 @@ local Settings = {
 local function IsValidTarget(player)
     if player == LocalPlayer or not player.Character then return false end
     
-    -- Жесткая проверка белого листа (по нику и по UserId)
+    -- Проверка белого листа (по нику или UserId)
     if Settings.Whitelist[player.Name] or Settings.Whitelist[player.UserId] then
         return false
     end
@@ -256,7 +257,7 @@ local TabListLayout = Instance.new("UIListLayout", TabBar)
 TabListLayout.FillDirection = Enum.FillDirection.Horizontal
 TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 TabListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-TabListLayout.Padding = UDim.new(0, 8)
+TabListLayout.Padding = UDim.new(0, 6)
 
 local ContentContainer = Instance.new("Frame", MainFrame)
 ContentContainer.BackgroundTransparency = 1
@@ -269,17 +270,19 @@ local TabButtons = {}
 local function CreateTab(tabName)
     local tabBtn = Instance.new("TextButton", TabBar)
     tabBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
-    tabBtn.Size = UDim2.new(0, 165, 0, 28)
+    tabBtn.Size = UDim2.new(0, 110, 0, 28)
     tabBtn.Font = Enum.Font.GothamBold
     tabBtn.Text = tabName
     tabBtn.TextColor3 = Color3.fromRGB(150, 140, 170)
     tabBtn.TextSize = 11
     Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 6)
 
-    local pageFrame = Instance.new("Frame", ContentContainer)
+    local pageFrame = Instance.new("ScrollingFrame", ContentContainer)
     pageFrame.BackgroundTransparency = 1
     pageFrame.Size = UDim2.new(1, 0, 1, 0)
     pageFrame.Visible = false
+    pageFrame.ScrollBarThickness = 3
+    pageFrame.CanvasSize = UDim2.new(0, 0, 0, 250)
 
     local pageList = Instance.new("UIListLayout", pageFrame)
     pageList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -303,6 +306,7 @@ end
 
 local AimbotPage = CreateTab("AIMBOT")
 local ESPPage = CreateTab("ESP")
+local WhitelistPage = CreateTab("WHITELIST")
 
 Tabs["AIMBOT"].Visible = true
 TabButtons["AIMBOT"].BackgroundColor3 = Color3.fromRGB(110, 25, 200)
@@ -423,7 +427,6 @@ AimFloatBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Обычный Аимбот (с залочкой по кнопке)
 RunService.RenderStepped:Connect(function()
     if Settings.Aimbot.Enabled and AimActive then
         local target = Settings.Aimbot.LockedTarget
@@ -438,7 +441,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- НАСТОЯЩАЯ КИЛЛАУРА В ФОНЕ (Без сброса и лочания камеры, с учетом whitelist)
+-- РЕАЛЬНАЯ РАБОЧАЯ КИЛЛАУРА (С поддержкой Da Hood MainEvent для урона с пушек/оружия)
 RunService.Heartbeat:Connect(function()
     if Settings.Aimbot.KillAura then
         local char = LocalPlayer.Character
@@ -448,7 +451,6 @@ RunService.Heartbeat:Connect(function()
             local handle = tool and tool:FindFirstChild("Handle")
             
             for _, player in ipairs(Players:GetPlayers()) do
-                -- IsValidTarget проверяет белый лист, здоровье и КО
                 if IsValidTarget(player) then
                     local targetChar = player.Character
                     local targetHrp = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
@@ -456,10 +458,17 @@ RunService.Heartbeat:Connect(function()
                         local dist = (hrp.Position - targetHrp.Position).Magnitude
                         if dist <= Settings.Aimbot.KillAuraRange then
                             pcall(function()
+                                -- Эмулируем физическое касание (для ближнего боя)
                                 if handle then
                                     firetouchinterest(handle, targetHrp, 0)
                                     firetouchinterest(handle, targetHrp, 1)
                                 end
+                                
+                                -- Шлем серверные пакеты урона для пушек Da Hood
+                                if MainEvent then
+                                    MainEvent:FireServer("MousePos", targetHrp.Position)
+                                end
+                                
                                 if tool then
                                     tool:Activate()
                                 end
@@ -469,6 +478,53 @@ RunService.Heartbeat:Connect(function()
                 end
             end
         end
+    end
+end)
+
+-- ГУИ ДЛЯ УПРАВЛЕНИЯ БЕЛЫМ ЛИСТОМ ПРЯМО В ИГРЕ
+local WlInputContainer = Instance.new("Frame", WhitelistPage)
+WlInputContainer.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+WlInputContainer.Size = UDim2.new(1, 0, 0, 40)
+Instance.new("UICorner", WlInputContainer).CornerRadius = UDim.new(0, 8)
+
+local WlTextBox = Instance.new("TextBox", WlInputContainer)
+WlTextBox.BackgroundTransparency = 1
+WlTextBox.Position = UDim2.new(0, 10, 0, 0)
+WlTextBox.Size = UDim2.new(0.65, 0, 1, 0)
+WlTextBox.Font = Enum.Font.GothamSemibold
+WlTextBox.PlaceholderText = "Введите ник друга..."
+WlTextBox.Text = ""
+WlTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+WlTextBox.PlaceholderColor3 = Color3.fromRGB(120, 110, 140)
+WlTextBox.TextSize = 12
+
+local WlAddBtn = Instance.new("TextButton", WlInputContainer)
+WlAddBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+WlAddBtn.Position = UDim2.new(0.68, 0, 0.1, 0)
+WlAddBtn.Size = UDim2.new(0.3, 0, 0.8, 0)
+WlAddBtn.Font = Enum.Font.GothamBold
+WlAddBtn.Text = "ДОБАВИТЬ"
+WlAddBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+WlAddBtn.TextSize = 11
+Instance.new("UICorner", WlAddBtn).CornerRadius = UDim.new(0, 6)
+
+local WlStatus = Instance.new("TextLabel", WhitelistPage)
+WlStatus.BackgroundTransparency = 1
+WlStatus.Size = UDim2.new(1, 0, 0, 24)
+WlStatus.Font = Enum.Font.Gotham
+WlStatus.Text = "Статус белого листа: Активен"
+WlStatus.TextColor3 = Color3.fromRGB(140, 255, 140)
+WlStatus.TextSize = 11
+WlStatus.TextXAlignment = Enum.TextXAlignment.Left
+
+WlAddBtn.MouseButton1Click:Connect(function()
+    local nameToAdd = WlTextBox.Text
+    if nameToAdd ~= "" then
+        Settings.Whitelist[nameToAdd] = true
+        WlStatus.Text = "Добавлен в белый лист: " .. nameToAdd
+        WlTextBox.Text = ""
+    else
+        WlStatus.Text = "Ошибка: введите ник!"
     end
 end)
 
