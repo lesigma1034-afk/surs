@@ -1,4 +1,4 @@
--- COCITESCRIPT | Ultimate Cyber Hub (Hard Snap)
+-- COCITESCRIPT | Ultimate Cyber Hub (Fixed Center-Chest Aim)
 if _G.CociteRunning then
     return
 end
@@ -13,7 +13,7 @@ local Settings = {
     Aimbot = {
         Enabled = false,
         LockedTarget = nil,
-        FOV = 200,
+        FOV = 250,
     },
     ESP = {
         Enabled = false,
@@ -185,7 +185,7 @@ LoginBtn.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- 3. ПЛАВАЮЩАЯ КНОПКА АИМБОТА И ЖЕСТКИЙ ЛОК
+-- 3. ПЛАВАЮЩАЯ КНОПКА АИМБОТА И ТОЧНЫЙ ЛОК В ТОРС
 -------------------------------------------------------------------
 local AimFloatBtn = Instance.new("TextButton", ScreenGui)
 AimFloatBtn.Name = "CociteAimButton"
@@ -205,21 +205,33 @@ local AimFloatStroke = Instance.new("UIStroke", AimFloatBtn)
 AimFloatStroke.Color = Color3.fromRGB(150, 50, 255)
 AimFloatStroke.Thickness = 2
 
+local function GetTargetAimPosition(character)
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        -- Возвращаем позицию центра туловища, приподнятую чуть выше (в грудь)
+        return hrp.Position + Vector3.new(0, 0.75, 0)
+    end
+    return nil
+end
+
 local function GetClosestToCenter()
     local closestP = nil
     local shortestDist = Settings.Aimbot.FOV
     local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local part = player.Character:FindFirstChild("UpperTorso") or player.Character:FindFirstChild("HumanoidRootPart")
-            if part then
-                local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local magnitude = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                    if magnitude < shortestDist then
-                        shortestDist = magnitude
-                        closestP = player
+        if player ~= LocalPlayer and player.Character then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local aimPos = GetTargetAimPosition(player.Character)
+                if aimPos then
+                    local pos, onScreen = Camera:WorldToViewportPoint(aimPos)
+                    if onScreen then
+                        local magnitude = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                        if magnitude < shortestDist then
+                            shortestDist = magnitude
+                            closestP = player
+                        end
                     end
                 end
             end
@@ -248,10 +260,10 @@ RunService.RenderStepped:Connect(function()
     if Settings.Aimbot.Enabled and AimActive then
         local target = Settings.Aimbot.LockedTarget
         if target and target.Character and target.Character:FindFirstChild("Humanoid") and target.Character.Humanoid.Health > 0 then
-            local targetPart = target.Character:FindFirstChild("UpperTorso") or target.Character:FindFirstChild("HumanoidRootPart")
-            if targetPart then
-                -- Жесткий моментальный лок (без плавности)
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+            local aimPos = GetTargetAimPosition(target.Character)
+            if aimPos then
+                -- Моментальный жесткий лок точно в центр туловища (грудь)
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPos)
             end
         else
             Settings.Aimbot.LockedTarget = GetClosestToCenter()
