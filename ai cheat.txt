@@ -1,4 +1,4 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (MICK Edition)
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup)
 if _G.CociteRunning then
     return
 end
@@ -7,7 +7,6 @@ _G.CociteRunning = true
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
@@ -16,7 +15,6 @@ local Settings = {
         Enabled = false,
         LockedTarget = nil,
         FOV = 250,
-        Smoothness = 0.3
     },
     ESP = {
         Enabled = false,
@@ -25,18 +23,11 @@ local Settings = {
         Names = true,
         ActiveDrawings = {},
         ActiveHighlights = {}
-    },
-    Godmode = {
-        Enabled = false,
-        Track = nil,
-        Heartbeat = nil,
-        AnimConn = nil
     }
 }
 
--- [RU] Проверка на валидность цели
 local function IsValidTarget(player)
-    if player == LocalPlayer or not player or not player.Character then return false end
+    if player == LocalPlayer or not player.Character then return false end
     local char = player.Character
     local humanoid = char:FindFirstChild("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -54,59 +45,16 @@ local function IsValidTarget(player)
     return true
 end
 
--- [RU] Получение Humanoid локального игрока
-local function GetHumanoid()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    return char:WaitForChild("Humanoid")
-end
-
--- [RU] Очистка анимации Годмода
-local function CleanupGodmode()
-    if Settings.Godmode.Track then Settings.Godmode.Track:Stop() Settings.Godmode.Track:Destroy() Settings.Godmode.Track = nil end
-    if Settings.Godmode.Heartbeat then Settings.Godmode.Heartbeat:Disconnect() Settings.Godmode.Heartbeat = nil end
-    if Settings.Godmode.AnimConn then Settings.Godmode.AnimConn:Disconnect() Settings.Godmode.AnimConn = nil end
-end
-
--- [RU] Запуск Годмода через заморозку анимации
-local function RunGodmode()
-    if not Settings.Godmode.Enabled then return end
-    local hum = GetHumanoid()
-    if not hum then return end
-    
-    CleanupGodmode()
-
-    local anim = Instance.new("Animation")
-    anim.AnimationId = "rbxassetid://70883871260184"
-    local track = hum:LoadAnimation(anim)
-    Settings.Godmode.Track = track
-    track:Play(0, 1, 1)
-
-    Settings.Godmode.Heartbeat = RunService.Heartbeat:Connect(function()
-        if track and Settings.Godmode.Enabled then
-            track.TimePosition = 0.1265
-            track:AdjustSpeed(0)
-        end
-    end)
-
-    Settings.Godmode.AnimConn = hum.AnimationPlayed:Connect(function(newtrack)
-        if Settings.Godmode.Enabled and track and newtrack ~= track then
-            task.delay(0.02 + math.random() * 0.03, RunGodmode)
-        end
-    end)
-end
-
-local function StopGodmode()
-    CleanupGodmode()
-end
-
--- [RU] Создание GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CociteCyberGui"
-local success = pcall(function() ScreenGui.Parent = CoreGui end)
-if not success then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+pcall(function()
+    ScreenGui.Parent = game.CoreGui
+end)
+if not ScreenGui.Parent then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 ScreenGui.ResetOnSpawn = false
 
--- [RU] Окно авторизации
 local AuthFrame = Instance.new("Frame", ScreenGui)
 AuthFrame.BackgroundColor3 = Color3.fromRGB(10, 8, 16)
 AuthFrame.Position = UDim2.new(0.5, -170, 0.5, -130)
@@ -216,7 +164,7 @@ TweenService:Create(PasteBtn, tweenInfo, {BackgroundTransparency = 0, TextTransp
 TweenService:Create(LoginBtn, tweenInfo, {BackgroundTransparency = 0, TextTransparency = 0}):Play()
 
 PasteBtn.MouseButton1Click:Connect(function()
-    if setclipboard and getclipboard then
+    if getclipboard then
         local text = getclipboard()
         if text and text ~= "" then
             TextBox.Text = text
@@ -295,7 +243,7 @@ local TabListLayout = Instance.new("UIListLayout", TabBar)
 TabListLayout.FillDirection = Enum.FillDirection.Horizontal
 TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 TabListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-TabListLayout.Padding = UDim.new(0, 6)
+TabListLayout.Padding = UDim.new(0, 8)
 
 local ContentContainer = Instance.new("Frame", MainFrame)
 ContentContainer.BackgroundTransparency = 1
@@ -308,7 +256,7 @@ local TabButtons = {}
 local function CreateTab(tabName)
     local tabBtn = Instance.new("TextButton", TabBar)
     tabBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
-    tabBtn.Size = UDim2.new(0.31, 0, 0, 28)
+    tabBtn.Size = UDim2.new(0, 165, 0, 28)
     tabBtn.Font = Enum.Font.GothamBold
     tabBtn.Text = tabName
     tabBtn.TextColor3 = Color3.fromRGB(150, 140, 170)
@@ -342,7 +290,6 @@ end
 
 local AimbotPage = CreateTab("AIMBOT")
 local ESPPage = CreateTab("ESP")
-local MickPage = CreateTab("MICK")
 
 Tabs["AIMBOT"].Visible = true
 TabButtons["AIMBOT"].BackgroundColor3 = Color3.fromRGB(110, 25, 200)
@@ -469,7 +416,7 @@ RunService.RenderStepped:Connect(function()
         if target and IsValidTarget(target) then
             local aimPos = GetTargetAimPosition(target.Character)
             if aimPos then
-                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, aimPos), Settings.Aimbot.Smoothness)
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPos)
             end
         else
             Settings.Aimbot.LockedTarget = GetClosestToCenter()
@@ -477,33 +424,38 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-local function RemoveESP(player)
-    if Settings.ESP.ActiveDrawings[player] then
-        for _, obj in pairs(Settings.ESP.ActiveDrawings[player]) do
-            if obj.Remove then obj:Remove() end
-        end
-        Settings.ESP.ActiveDrawings[player] = nil
-    end
+local function RemoveHighlight(player)
     if Settings.ESP.ActiveHighlights[player] then
         Settings.ESP.ActiveHighlights[player]:Destroy()
         Settings.ESP.ActiveHighlights[player] = nil
     end
 end
 
-local function ClearAllESP()
-    for player, _ in pairs(Settings.ESP.ActiveDrawings) do
-        RemoveESP(player)
+local function ClearESP()
+    for _, objList in pairs(Settings.ESP.ActiveDrawings) do
+        for _, obj in pairs(objList) do
+            if obj then obj:Remove() end
+        end
+    end
+    Settings.ESP.ActiveDrawings = {}
+
+    for player, _ in pairs(Settings.ESP.ActiveHighlights) do
+        RemoveHighlight(player)
     end
 end
 
 Players.PlayerRemoving:Connect(function(player)
-    RemoveESP(player)
+    if Settings.ESP.ActiveDrawings[player] then
+        for _, obj in pairs(Settings.ESP.ActiveDrawings[player]) do
+            if obj then obj:Remove() end
+        end
+        Settings.ESP.ActiveDrawings[player] = nil
+    end
+    RemoveHighlight(player)
 end)
 
 RunService.RenderStepped:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        
         if Settings.ESP.Enabled and IsValidTarget(player) then
             local char = player.Character
             local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -527,26 +479,26 @@ RunService.RenderStepped:Connect(function()
             end
             
             local visuals = Settings.ESP.ActiveDrawings[player]
+            local box, nameText = visuals.Box, visuals.Name
             
             if onScreen then
                 local scaleFactor = 300 / pos.Z
                 local size = Vector2.new(2, 3) * scaleFactor
+                box.Size = size
+                box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
+                box.Visible = Settings.ESP.Boxes
                 
-                visuals.Box.Size = size
-                visuals.Box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
-                visuals.Box.Visible = Settings.ESP.Boxes
-                
-                visuals.Name.Text = player.Name
-                visuals.Name.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 18)
-                visuals.Name.Visible = Settings.ESP.Names
+                nameText.Text = player.Name
+                nameText.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 18)
+                nameText.Visible = Settings.ESP.Names
             else
-                visuals.Box.Visible = false
-                visuals.Name.Visible = false
+                box.Visible = false
+                nameText.Visible = false
             end
 
             if Settings.ESP.Chams then
                 if not Settings.ESP.ActiveHighlights[player] or Settings.ESP.ActiveHighlights[player].Parent ~= char then
-                    if Settings.ESP.ActiveHighlights[player] then Settings.ESP.ActiveHighlights[player]:Destroy() end
+                    RemoveHighlight(player)
                     local hl = Instance.new("Highlight")
                     hl.Name = "CociteChams"
                     hl.FillColor = Color3.fromRGB(150, 40, 255)
@@ -559,20 +511,16 @@ RunService.RenderStepped:Connect(function()
                 else
                     Settings.ESP.ActiveHighlights[player].Enabled = true
                 end
-            elseif Settings.ESP.ActiveHighlights[player] then
-                Settings.ESP.ActiveHighlights[player]:Destroy()
-                Settings.ESP.ActiveHighlights[player] = nil
+            else
+                RemoveHighlight(player)
             end
         else
-            RemoveESP(player)
+            if Settings.ESP.ActiveDrawings[player] then
+                Settings.ESP.ActiveDrawings[player].Box.Visible = false
+                Settings.ESP.ActiveDrawings[player].Name.Visible = false
+            end
+            RemoveHighlight(player)
         end
-    end
-end)
-
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.25)
-    if Settings.Godmode.Enabled then
-        RunGodmode()
     end
 end)
 
@@ -591,7 +539,7 @@ end)
 CreateToggle(ESPPage, "Master ESP", false, function(state)
     Settings.ESP.Enabled = state
     if not state then
-        ClearAllESP()
+        ClearESP()
     end
 end)
 
@@ -605,13 +553,4 @@ end)
 
 CreateToggle(ESPPage, "Name ESP", true, function(state)
     Settings.ESP.Names = state
-end)
-
-CreateToggle(MickPage, "Godmode (Anim Freeze)", false, function(state)
-    Settings.Godmode.Enabled = state
-    if state then
-        RunGodmode()
-    else
-        StopGodmode()
-    end
 end)
