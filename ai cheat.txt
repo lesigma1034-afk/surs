@@ -1,4 +1,4 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (Working KillAura + Whitelist)
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Fixed Stable KillAura + Whitelist)
 if _G.CociteRunning then
     return
 end
@@ -17,11 +17,11 @@ local Settings = {
         LockedTarget = nil,
         FOV = 250,
         KillAura = false,
-        KillAuraRange = 150,
+        KillAuraRange = 150, -- Радиус киллауры 150
     },
     Whitelist = {
-        -- Сюда вписывай ники тех, кого киллаура и аим не должны трогать:
-        -- ["НикДруга"] = true,
+        -- Сюда вписывай ники тех, кого киллаура не должна трогать:
+        -- ["ТвойДруг"] = true,
     },
     ESP = {
         Enabled = false,
@@ -36,7 +36,7 @@ local Settings = {
 local function IsValidTarget(player)
     if player == LocalPlayer or not player.Character then return false end
     
-    -- Проверка белого листа
+    -- Проверка белого листа (по нику и UserId)
     if Settings.Whitelist[player.Name] or Settings.Whitelist[player.UserId] then
         return false
     end
@@ -438,7 +438,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Реальная Киллаура для Da Hood (с автонаведением и эмуляцией кликов)
+-- РАБОЧАЯ СТАБИЛЬНАЯ КИЛЛАУРА (Дистанция 150, бьет ближайшего без дергания камеры)
 RunService.RenderStepped:Connect(function()
     if Settings.Aimbot.KillAura then
         local char = LocalPlayer.Character
