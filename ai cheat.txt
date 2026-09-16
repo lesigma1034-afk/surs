@@ -1,4 +1,4 @@
--- COCITESCRIPT | Ultimate Cyber Hub (Full Settings + Silent Init)
+-- COCITESCRIPT | Ultimate Cyber Hub (Hard Snap)
 if _G.CociteRunning then
     return
 end
@@ -13,24 +13,18 @@ local Settings = {
     Aimbot = {
         Enabled = false,
         LockedTarget = nil,
-        FOV = 120,
-        Smoothness = 0.25,
-    },
-    Noclip = {
-        Enabled = false
+        FOV = 200,
     },
     ESP = {
         Enabled = false,
         Boxes = true,
         Names = true,
-        Chams = false,
-        ActiveDrawings = {},
-        ActiveChams = {}
+        ActiveDrawings = {}
     }
 }
 
 -------------------------------------------------------------------
--- 1. КРАСИВОЕ ОКНО АВТОРИЗАЦИИ С НИКОМ ИГРОКА
+-- 1. ОКНО АВТОРИЗАЦИИ
 -------------------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CociteCyberGui"
@@ -109,7 +103,7 @@ LoginBtn.TextSize = 13
 Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 10)
 
 -------------------------------------------------------------------
--- 2. ГЛАВНОЕ МЕНЮ И ОКНА НАСТРОЕК
+-- 2. ГЛАВНОЕ МЕНЮ
 -------------------------------------------------------------------
 local ToggleButton = Instance.new("ImageButton", ScreenGui)
 ToggleButton.Name = "CociteToggleBtn"
@@ -129,8 +123,8 @@ ToggleStroke.Thickness = 2.5
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name = "MainFrame"
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
-MainFrame.Position = UDim2.new(0.5, -180, 0.5, -120)
-MainFrame.Size = UDim2.new(0, 360, 0, 230)
+MainFrame.Position = UDim2.new(0.5, -180, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 360, 0, 175)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -171,120 +165,12 @@ CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 11
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
--------------------------------------------------------------------
--- ОКНО НАСТРОЕК АИМБОТА
--------------------------------------------------------------------
-local SettingsFrame = Instance.new("Frame", ScreenGui)
-SettingsFrame.Name = "SettingsFrame"
-SettingsFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
-SettingsFrame.Position = UDim2.new(0.5, -180, 0.5, -120)
-SettingsFrame.Size = UDim2.new(0, 360, 0, 230)
-SettingsFrame.Visible = false
-SettingsFrame.Active = true
-SettingsFrame.Draggable = true
-
-Instance.new("UICorner", SettingsFrame).CornerRadius = UDim.new(0, 14)
-local SettingsStroke = Instance.new("UIStroke", SettingsFrame)
-SettingsStroke.Color = Color3.fromRGB(140, 40, 255)
-SettingsStroke.Thickness = 2.5
-
-local SetHeader = Instance.new("Frame", SettingsFrame)
-SetHeader.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-SetHeader.Size = UDim2.new(1, 0, 0, 45)
-Instance.new("UICorner", SetHeader).CornerRadius = UDim.new(0, 14)
-
-local SetHeaderFix = Instance.new("Frame", SetHeader)
-SetHeaderFix.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-SetHeaderFix.BorderSizePixel = 0
-SetHeaderFix.Position = UDim2.new(0, 0, 1, -10)
-SetHeaderFix.Size = UDim2.new(1, 0, 0, 10)
-
-local SetTitle = Instance.new("TextLabel", SetHeader)
-SetTitle.BackgroundTransparency = 1
-SetTitle.Position = UDim2.new(0, 18, 0, 0)
-SetTitle.Size = UDim2.new(1, -18, 1, 0)
-SetTitle.Font = Enum.Font.GothamBold
-SetTitle.Text = "⚙️ AIMBOT SETTINGS ⚙️"
-SetTitle.TextColor3 = Color3.fromRGB(210, 160, 255)
-SetTitle.TextSize = 14
-SetTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local BackBtn = Instance.new("TextButton", SetHeader)
-BackBtn.BackgroundColor3 = Color3.fromRGB(90, 30, 160)
-BackBtn.Position = UDim2.new(1, -38, 0.5, -12)
-BackBtn.Size = UDim2.new(0, 24, 0, 24)
-BackBtn.Font = Enum.Font.GothamBold
-BackBtn.Text = "←"
-BackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-BackBtn.TextSize = 12
-Instance.new("UICorner", BackBtn).CornerRadius = UDim.new(0, 6)
-
--------------------------------------------------------------------
--- ОКНО НАСТРОЕК ESP
--------------------------------------------------------------------
-local ESPSettingsFrame = Instance.new("Frame", ScreenGui)
-ESPSettingsFrame.Name = "ESPSettingsFrame"
-ESPSettingsFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
-ESPSettingsFrame.Position = UDim2.new(0.5, -180, 0.5, -120)
-ESPSettingsFrame.Size = UDim2.new(0, 360, 0, 230)
-ESPSettingsFrame.Visible = false
-ESPSettingsFrame.Active = true
-ESPSettingsFrame.Draggable = true
-
-Instance.new("UICorner", ESPSettingsFrame).CornerRadius = UDim.new(0, 14)
-local ESPSetStroke = Instance.new("UIStroke", ESPSettingsFrame)
-ESPSetStroke.Color = Color3.fromRGB(140, 40, 255)
-ESPSetStroke.Thickness = 2.5
-
-local ESPSetHeader = Instance.new("Frame", ESPSettingsFrame)
-ESPSetHeader.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-ESPSetHeader.Size = UDim2.new(1, 0, 0, 45)
-Instance.new("UICorner", ESPSetHeader).CornerRadius = UDim.new(0, 14)
-
-local ESPSetHeaderFix = Instance.new("Frame", ESPSetHeader)
-ESPSetHeaderFix.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-ESPSetHeaderFix.BorderSizePixel = 0
-ESPSetHeaderFix.Position = UDim2.new(0, 0, 1, -10)
-ESPSetHeaderFix.Size = UDim2.new(1, 0, 0, 10)
-
-local ESPSetTitle = Instance.new("TextLabel", ESPSetHeader)
-ESPSetTitle.BackgroundTransparency = 1
-ESPSetTitle.Position = UDim2.new(0, 18, 0, 0)
-ESPSetTitle.Size = UDim2.new(1, -18, 1, 0)
-ESPSetTitle.Font = Enum.Font.GothamBold
-ESPSetTitle.Text = "⚙️ ESP SETTINGS ⚙️"
-ESPSetTitle.TextColor3 = Color3.fromRGB(210, 160, 255)
-ESPSetTitle.TextSize = 14
-ESPSetTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local ESPBackBtn = Instance.new("TextButton", ESPSetHeader)
-ESPBackBtn.BackgroundColor3 = Color3.fromRGB(90, 30, 160)
-ESPBackBtn.Position = UDim2.new(1, -38, 0.5, -12)
-ESPBackBtn.Size = UDim2.new(0, 24, 0, 24)
-ESPBackBtn.Font = Enum.Font.GothamBold
-ESPBackBtn.Text = "←"
-ESPBackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ESPBackBtn.TextSize = 12
-Instance.new("UICorner", ESPBackBtn).CornerRadius = UDim.new(0, 6)
-
-BackBtn.MouseButton1Click:Connect(function()
-    SettingsFrame.Visible = false
-    MainFrame.Visible = true
-end)
-
-ESPBackBtn.MouseButton1Click:Connect(function()
-    ESPSettingsFrame.Visible = false
-    MainFrame.Visible = true
-end)
-
 CloseBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
 end)
 
 ToggleButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
-    SettingsFrame.Visible = false
-    ESPSettingsFrame.Visible = false
 end)
 
 LoginBtn.MouseButton1Click:Connect(function()
@@ -299,7 +185,7 @@ LoginBtn.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- 3. ПЛАВАЮЩАЯ КНОПКА АИМБОТА
+-- 3. ПЛАВАЮЩАЯ КНОПКА АИМБОТА И ЖЕСТКИЙ ЛОК
 -------------------------------------------------------------------
 local AimFloatBtn = Instance.new("TextButton", ScreenGui)
 AimFloatBtn.Name = "CociteAimButton"
@@ -326,7 +212,7 @@ local function GetClosestToCenter()
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local part = player.Character:FindFirstChild("Head")
+            local part = player.Character:FindFirstChild("UpperTorso") or player.Character:FindFirstChild("HumanoidRootPart")
             if part then
                 local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
                 if onScreen then
@@ -361,19 +247,14 @@ end)
 RunService.RenderStepped:Connect(function()
     if Settings.Aimbot.Enabled and AimActive then
         local target = Settings.Aimbot.LockedTarget
-        if target and target.Character and target.Character:FindFirstChild("Head") and target.Character.Humanoid.Health > 0 then
-            local head = target.Character.Head
-            local currentCF = Camera.CFrame
-            local targetCF = CFrame.new(currentCF.Position, head.Position)
-            Camera.CFrame = currentCF:Lerp(targetCF, Settings.Aimbot.Smoothness)
+        if target and target.Character and target.Character:FindFirstChild("Humanoid") and target.Character.Humanoid.Health > 0 then
+            local targetPart = target.Character:FindFirstChild("UpperTorso") or target.Character:FindFirstChild("HumanoidRootPart")
+            if targetPart then
+                -- Жесткий моментальный лок (без плавности)
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+            end
         else
             Settings.Aimbot.LockedTarget = GetClosestToCenter()
-        end
-    end
-    
-    if Settings.Noclip.Enabled and LocalPlayer.Character then
-        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
         end
     end
 end)
@@ -381,11 +262,11 @@ end)
 -------------------------------------------------------------------
 -- 4. КОНСТРУКТОР КНОПОК МЕНЮ
 -------------------------------------------------------------------
-local function CreateButton(name, posY, callback, settingsType)
+local function CreateButton(name, posY, callback)
     local btn = Instance.new("TextButton", MainFrame)
     btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
     btn.Position = UDim2.new(0, 20, 0, posY)
-    btn.Size = UDim2.new(settingsType and 0 or 320, settingsType and 270 or 320, 0, 45)
+    btn.Size = UDim2.new(0, 320, 0, 45)
     btn.Font = Enum.Font.GothamSemibold
     btn.Text = name .. ": OFF"
     btn.TextColor3 = Color3.fromRGB(190, 180, 210)
@@ -395,29 +276,6 @@ local function CreateButton(name, posY, callback, settingsType)
     local stroke = Instance.new("UIStroke", btn)
     stroke.Color = Color3.fromRGB(90, 40, 160)
     stroke.Thickness = 1.2
-    
-    if settingsType then
-        local gearBtn = Instance.new("TextButton", MainFrame)
-        gearBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-        gearBtn.Position = UDim2.new(0, 300, 0, posY)
-        gearBtn.Size = UDim2.new(0, 40, 0, 45)
-        gearBtn.Font = Enum.Font.GothamBold
-        gearBtn.Text = "⚙️"
-        gearBtn.TextSize = 16
-        Instance.new("UICorner", gearBtn).CornerRadius = UDim.new(0, 10)
-        local gearStroke = Instance.new("UIStroke", gearBtn)
-        gearStroke.Color = Color3.fromRGB(90, 40, 160)
-        gearStroke.Thickness = 1.2
-        
-        gearBtn.MouseButton1Click:Connect(function()
-            MainFrame.Visible = false
-            if settingsType == "aim" then
-                SettingsFrame.Visible = true
-            elseif settingsType == "esp" then
-                ESPSettingsFrame.Visible = true
-            end
-        end)
-    end
     
     local active = false
     btn.MouseButton1Click:Connect(function()
@@ -437,113 +295,7 @@ local function CreateButton(name, posY, callback, settingsType)
 end
 
 -------------------------------------------------------------------
--- ЭЛЕМЕНТЫ НАСТРОЕК АИМА
--------------------------------------------------------------------
-local FOVLabel = Instance.new("TextLabel", SettingsFrame)
-FOVLabel.BackgroundTransparency = 1
-FOVLabel.Position = UDim2.new(0, 20, 0, 55)
-FOVLabel.Size = UDim2.new(1, -40, 0, 20)
-FOVLabel.Font = Enum.Font.GothamSemibold
-FOVLabel.Text = "Радиус FOV: 120"
-FOVLabel.TextColor3 = Color3.fromRGB(190, 180, 210)
-FOVLabel.TextSize = 12
-FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local FOVBtn = Instance.new("TextButton", SettingsFrame)
-FOVBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-FOVBtn.Position = UDim2.new(0, 20, 0, 80)
-FOVBtn.Size = UDim2.new(0, 320, 0, 38)
-FOVBtn.Font = Enum.Font.Gotham
-FOVBtn.Text = "Сменить FOV (120 / 250 / 500)"
-FOVBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-FOVBtn.TextSize = 12
-Instance.new("UICorner", FOVBtn).CornerRadius = UDim.new(0, 10)
-local FOVStroke = Instance.new("UIStroke", FOVBtn)
-FOVStroke.Color = Color3.fromRGB(90, 40, 160)
-FOVStroke.Thickness = 1.2
-
-FOVBtn.MouseButton1Click:Connect(function()
-    if Settings.Aimbot.FOV == 120 then
-        Settings.Aimbot.FOV = 250
-    elseif Settings.Aimbot.FOV == 250 then
-        Settings.Aimbot.FOV = 500
-    else
-        Settings.Aimbot.FOV = 120
-    end
-    FOVLabel.Text = "Радиус FOV: " .. Settings.Aimbot.FOV
-end)
-
-local SmoothLabel = Instance.new("TextLabel", SettingsFrame)
-SmoothLabel.BackgroundTransparency = 1
-SmoothLabel.Position = UDim2.new(0, 20, 0, 130)
-SmoothLabel.Size = UDim2.new(1, -40, 0, 20)
-SmoothLabel.Font = Enum.Font.GothamSemibold
-SmoothLabel.Text = "Плавность аима: 0.25 (Легит)"
-SmoothLabel.TextColor3 = Color3.fromRGB(190, 180, 210)
-SmoothLabel.TextSize = 12
-SmoothLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local SmoothBtn = Instance.new("TextButton", SettingsFrame)
-SmoothBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-SmoothBtn.Position = UDim2.new(0, 20, 0, 155)
-SmoothBtn.Size = UDim2.new(0, 320, 0, 38)
-SmoothBtn.Font = Enum.Font.Gotham
-SmoothBtn.Text = "Сменить плавность (0.15 / 0.25 / 1.0)"
-SmoothBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SmoothBtn.TextSize = 12
-Instance.new("UICorner", SmoothBtn).CornerRadius = UDim.new(0, 10)
-local SmoothStroke = Instance.new("UIStroke", SmoothBtn)
-SmoothStroke.Color = Color3.fromRGB(90, 40, 160)
-SmoothStroke.Thickness = 1.2
-
-SmoothBtn.MouseButton1Click:Connect(function()
-    if Settings.Aimbot.Smoothness == 0.25 then
-        Settings.Aimbot.Smoothness = 0.15
-        SmoothLabel.Text = "Плавность аима: 0.15 (Очень плавно)"
-    elseif Settings.Aimbot.Smoothness == 0.15 then
-        Settings.Aimbot.Smoothness = 1.0
-        SmoothLabel.Text = "Плавность аима: 1.0 (Жесткий лок)"
-    else
-        Settings.Aimbot.Smoothness = 0.25
-        SmoothLabel.Text = "Плавность аима: 0.25 (Легит)"
-    end
-end)
-
--------------------------------------------------------------------
--- ЭЛЕМЕНТЫ НАСТРОЕК ESP (BOX / NAME / CHAMS)
--------------------------------------------------------------------
-local function CreateESPToggle(name, posY, settingKey)
-    local btn = Instance.new("TextButton", ESPSettingsFrame)
-    btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-    btn.Position = UDim2.new(0, 20, 0, posY)
-    btn.Size = UDim2.new(0, 320, 0, 40)
-    btn.Font = Enum.Font.GothamSemibold
-    btn.Text = name .. ": ON"
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 12
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
-    local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = Color3.fromRGB(90, 40, 160)
-    stroke.Thickness = 1.2
-    
-    btn.MouseButton1Click:Connect(function()
-        Settings.ESP[settingKey] = not Settings.ESP[settingKey]
-        if Settings.ESP[settingKey] then
-            btn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
-            btn.Text = name .. ": ON"
-        else
-            btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-            btn.Text = name .. ": OFF"
-        end
-    end)
-end
-
-CreateESPToggle("ESP Boxes", 55, "Boxes")
-CreateESPToggle("ESP Names", 105, "Names")
-CreateESPToggle("ESP Chams", 155, "Chams")
-
--------------------------------------------------------------------
--- 5. ИДЕАЛЬНО БЫСТРЫЙ ESP (С УЧЕТОМ НАСТРОЕК)
+-- 5. ESP
 -------------------------------------------------------------------
 local function ClearESP()
     for _, objList in pairs(Settings.ESP.ActiveDrawings) do
@@ -552,11 +304,6 @@ local function ClearESP()
         end
     end
     Settings.ESP.ActiveDrawings = {}
-    
-    for _, chams in pairs(Settings.ESP.ActiveChams) do
-        if chams then chams:Destroy() end
-    end
-    Settings.ESP.ActiveChams = {}
 end
 
 local function ToggleESP(state)
@@ -573,10 +320,6 @@ Players.PlayerRemoving:Connect(function(player)
         end
         Settings.ESP.ActiveDrawings[player] = nil
     end
-    if Settings.ESP.ActiveChams[player] then
-        Settings.ESP.ActiveChams[player]:Destroy()
-        Settings.ESP.ActiveChams[player] = nil
-    end
 end)
 
 RunService.RenderStepped:Connect(function()
@@ -591,7 +334,6 @@ RunService.RenderStepped:Connect(function()
             if hrp and humanoid and humanoid.Health > 0 then
                 local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
                 
-                -- Инициализация Drawing объектов
                 if not Settings.ESP.ActiveDrawings[player] then
                     local box = Drawing.new("Square")
                     box.Visible = false
@@ -612,53 +354,24 @@ RunService.RenderStepped:Connect(function()
                 local visuals = Settings.ESP.ActiveDrawings[player]
                 local box, nameText = visuals.Box, visuals.Name
                 
-                -- Отрисовка Box
-                if onScreen and Settings.ESP.Boxes then
+                if onScreen then
                     local scaleFactor = 300 / pos.Z
                     local size = Vector2.new(2, 3) * scaleFactor
                     box.Size = size
                     box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
                     box.Visible = true
-                else
-                    box.Visible = false
-                end
-                
-                -- Отрисовка Name
-                if onScreen and Settings.ESP.Names then
-                    local scaleFactor = 300 / pos.Z
-                    local size = Vector2.new(2, 3) * scaleFactor
+                    
                     nameText.Text = player.Name
                     nameText.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 18)
                     nameText.Visible = true
                 else
+                    box.Visible = false
                     nameText.Visible = false
                 end
-                
-                -- Обработка Chams (Highlight)
-                if Settings.ESP.Chams then
-                    if not Settings.ESP.ActiveChams[player] and char then
-                        local highlight = Instance.new("Highlight")
-                        highlight.FillColor = Color3.fromRGB(170, 50, 255)
-                        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                        highlight.FillTransparency = 0.5
-                        highlight.Parent = char
-                        Settings.ESP.ActiveChams[player] = highlight
-                    end
-                else
-                    if Settings.ESP.ActiveChams[player] then
-                        Settings.ESP.ActiveChams[player]:Destroy()
-                        Settings.ESP.ActiveChams[player] = nil
-                    end
-                end
-                
             else
                 if Settings.ESP.ActiveDrawings[player] then
                     Settings.ESP.ActiveDrawings[player].Box.Visible = false
                     Settings.ESP.ActiveDrawings[player].Name.Visible = false
-                end
-                if Settings.ESP.ActiveChams[player] then
-                    Settings.ESP.ActiveChams[player]:Destroy()
-                    Settings.ESP.ActiveChams[player] = nil
                 end
             end
         end
@@ -666,7 +379,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -------------------------------------------------------------------
--- ИНИЦИАЛИЗАЦИЯ КНОПОК МЕНЮ
+-- ИНИЦИАЛИЗАЦИЯ КНОПОК
 -------------------------------------------------------------------
 CreateButton("Aimbot", 55, function(state) 
     Settings.Aimbot.Enabled = state
@@ -678,7 +391,8 @@ CreateButton("Aimbot", 55, function(state)
         AimFloatBtn.Text = "🎯 AIM: OFF"
         Settings.Aimbot.LockedTarget = nil
     end
-end, "aim")
+end)
 
-CreateButton("ESP (Boxes + Names)", 110, function(state) ToggleESP(state) end, "esp")
-CreateButton("Noclip", 165, function(state) Settings.Noclip.Enabled = state end, nil)
+CreateButton("ESP (Boxes + Names)", 110, function(state) 
+    ToggleESP(state) 
+end)
