@@ -317,7 +317,7 @@ TweenService:Create(AuthTitle, tweenInfo, {TextTransparency = 0}):Play()
 TweenService:Create(WelcomeLabel, tweenInfo, {TextTransparency = 0}):Play()
 TweenService:Create(InputContainer, tweenInfo, {BackgroundTransparency = 0}):Play()
 TweenService:Create(TextBox, tweenInfo, {TextTransparency = 0}):Play()
-TweenService:Create(StatusLabel, tweenInfo, {TextTransparency = 0}):Play()
+TweenService:Create(StatusLabel, tweeninfo, {TextTransparency = 0}):Play()
 TweenService:Create(PasteBtn, tweenInfo, {BackgroundTransparency = 0, TextTransparency = 0}):Play()
 TweenService:Create(LoginBtn, tweenInfo, {BackgroundTransparency = 0, TextTransparency = 0}):Play()
 
@@ -1090,19 +1090,6 @@ pcall(function()
     end
 end)
 
-local function CalcRayDirection(origin, targetPos, spread)
-    local dir = (targetPos - origin).Unit
-    if spread and spread > 0 then
-        local spreadDist = spread * ((targetPos - origin).Magnitude / 100)
-        dir = ((targetPos + Vector3.new(
-            math.random(-spreadDist * 1000, spreadDist * 1000) / 1000,
-            math.random(-spreadDist * 1000, spreadDist * 1000) / 1000,
-            math.random(-spreadDist * 1000, spreadDist * 1000) / 1000
-        )) - origin).Unit
-    end
-    return dir * 1000
-end
-
 -- [[ RAPID FIRE ENGINE ]]
 local rapidFireLastShot = 0
 
@@ -1247,43 +1234,67 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [[ ULTIMATE BULLET TP & DA HOOD REDIRECTION ENGINE ]]
-table.insert(_G.CociteConnections, workspace.ChildAdded:Connect(function(child)
-    if Settings.SilentAim.Enabled and currentSilentAimPos then
-        if child:IsA("BasePart") and (child.Name == "Bullet" or child.Name == "Part" or child.Name == "Effect" or string.find(string.lower(child.Name), "bullet")) then
-            task.spawn(function()
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    if hrp and (child.Position - hrp.Position).Magnitude < 25 then
-                        child.CFrame = CFrame.new(currentSilentAimPos)
-                        child.AssemblyLinearVelocity = Vector3.zero
-                    end
-                end)
+-- ============================================================
+-- [[ TP BULLET ENGINE (Da Hood | Mobile Compatible) ]]
+-- Перенесено из файла: смена GripPos инструмента + хук MainEvent
+-- ============================================================
+local TpBulletTrackedTool = nil
+local TpBulletActivatedConn = nil
+
+local function TpBulletRefreshGrip(tool)
+    local char = LocalPlayer.Character
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not tool or not char or not backpack then return end
+    pcall(function()
+        tool.Parent = backpack
+        tool.Parent = char
+    end)
+end
+
+local function TpBulletHookCharacter(char)
+    char.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            TpBulletTrackedTool = child
+            local oldGrip = child.GripPos
+            if TpBulletActivatedConn then
+                pcall(function() TpBulletActivatedConn:Disconnect() end)
+            end
+            TpBulletActivatedConn = child.Activated:Connect(function()
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local aimPos = currentSilentAimPos
+                if Settings.SilentAim.Enabled and currentSilentTargetPart and hrp and aimPos then
+                    -- перенос "ствола" на цель (логика из файла)
+                    local objPos = hrp.CFrame:PointToObjectSpace(aimPos)
+                    child.GripPos = Vector3.new(-objPos.Z, 0, objPos.X)
+                    TpBulletRefreshGrip(child)
+                    local myTool = child
+                    task.delay(0.3, function()
+                        pcall(function()
+                            myTool.GripPos = oldGrip
+                            TpBulletRefreshGrip(myTool)
+                        end)
+                    end)
+                end
             end)
         end
-    end
-end))
-
-local Mouse = LocalPlayer:GetMouse()
-pcall(function()
-    if hookmetamethod and newcclosure and checkcaller then
-        local oldIndex
-        oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-            if not checkcaller() and (key == "Hit" or key == "hit" or key == "Target" or key == "target") and (self == Mouse) then
-                if Settings.SilentAim.Enabled and currentSilentAimPos then
-                    if key == "Hit" or key == "hit" then
-                        return CFrame.new(currentSilentAimPos)
-                    elseif (key == "Target" or key == "target") and currentSilentTargetPart then
-                        return currentSilentTargetPart
-                    end
-                end
+    end)
+    char.ChildRemoved:Connect(function(child)
+        if child:IsA("Tool") and child == TpBulletTrackedTool then
+            TpBulletTrackedTool = nil
+            if TpBulletActivatedConn then
+                pcall(function() TpBulletActivatedConn:Disconnect() end)
+                TpBulletActivatedConn = nil
             end
-            return oldIndex(self, key)
-        end))
-    end
-end)
+        end
+    end)
+end
 
+if LocalPlayer.Character then
+    pcall(TpBulletHookCharacter, LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(TpBulletHookCharacter)
+
+-- Перенаправление позиции мыши на сервере (MainEvent "UpdateMousePos" / "MOUSE")
 pcall(function()
     if hookmetamethod and getnamecallmethod and newcclosure and checkcaller then
         local oldNamecall
@@ -1292,41 +1303,12 @@ pcall(function()
             local args = {...}
             local self = args[1]
 
-            if not checkcaller() and not isInternalRay and Settings.SilentAim.Enabled and currentSilentAimPos then
-                local willHit = true
-                if Settings.SilentAim.HitChance < 100 then
-                    willHit = (math.random(1, 100) <= Settings.SilentAim.HitChance)
-                end
-
-                if willHit then
-                    if self == workspace and method == "Raycast" then
-                        if typeof(args[2]) == "Vector3" and typeof(args[3]) == "Vector3" then
-                            local origin = args[2]
-                            local targetPos = currentSilentAimPos
-
-                            local toolName = equippedToolName or ""
-                            local isShotgun = string.find(string.lower(toolName), "double")
-                                           or string.find(string.lower(toolName), "tactical")
-                                           or string.find(string.lower(toolName), "shotgun")
-                            local spreadVal = 0
-                            if not (Settings.NoSpread and Settings.NoSpread.Enabled) then
-                                spreadVal = isShotgun and 6 or 0
-                            else
-                                spreadVal = ((Settings.NoSpread.Amount or 0) / 100) * (isShotgun and 6 or 0)
-                            end
-                            args[3] = CalcRayDirection(origin, targetPos, spreadVal)
-                            return oldNamecall(table.unpack(args))
-                        end
-                    elseif method == "FireServer" and tostring(self) == "MainEvent" then
-                        local eventArg = tostring(args[2] or args[1] or "")
-                        if eventArg == "UpdateMousePos" or eventArg == "UpdateMousePosI" or string.find(string.lower(eventArg), "mousepos") then
-                            if args[2] == eventArg then
-                                args[3] = currentSilentAimPos
-                            else
-                                args[2] = currentSilentAimPos
-                            end
-                            return oldNamecall(table.unpack(args))
-                        end
+            if not checkcaller() and Settings.SilentAim.Enabled and currentSilentTargetPart and currentSilentAimPos then
+                if method == "FireServer" and string.lower(tostring(self)) == "mainevent" then
+                    local eventArg = args[2]
+                    if eventArg == "UpdateMousePos" or eventArg == "MOUSE" then
+                        args[3] = currentSilentAimPos
+                        return oldNamecall(table.unpack(args))
                     end
                 end
             end
