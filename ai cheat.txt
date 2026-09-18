@@ -1,20 +1,85 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (Silent Aim Edition)
-if _G.CociteRunning then
-    return
-end
-_G.CociteRunning = true
-
-local Players = game:GetService("Players")
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup & Anti-Freeze)
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    Camera = workspace.CurrentCamera
+end)
+
+pcall(function()
+    RunService:UnbindFromRenderStep("CociteCamLock")
+    if _G.CociteConnections then
+        for _, conn in pairs(_G.CociteConnections) do
+            pcall(function() conn:Disconnect() end)
+        end
+    end
+    if _G.CociteDrawings then
+        for _, d in pairs(_G.CociteDrawings) do
+            pcall(function() d:Remove() end)
+        end
+    end
+    local prevCoreGui = game:GetService("CoreGui"):FindFirstChild("CociteCyberGui")
+    if prevCoreGui then prevCoreGui:Destroy() end
+    if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
+        local prevPlayerGui = LocalPlayer.PlayerGui:FindFirstChild("CociteCyberGui")
+        if prevPlayerGui then prevPlayerGui:Destroy() end
+    end
+    if workspace:FindFirstChild("CociteCamProxy") then
+        workspace.CociteCamProxy:Destroy()
+    end
+    if workspace:FindFirstChild("CociteTPGhost") then
+        workspace.CociteTPGhost:Destroy()
+    end
+    local char = LocalPlayer and LocalPlayer.Character
+    if char and char:FindFirstChildOfClass("Humanoid") and Camera then
+        if Camera.CameraSubject ~= char:FindFirstChildOfClass("Humanoid") then
+            Camera.CameraSubject = char:FindFirstChildOfClass("Humanoid")
+        end
+        Camera.CameraType = Enum.CameraType.Custom
+    end
+end)
+_G.CociteConnections = {}
+_G.CociteDrawings = {}
 
 local Settings = {
     Aimbot = {
-        Enabled = false,
+        Enabled = true,
         LockedTarget = nil,
-        FOV = 250,
+        AimPart = "Head",
+        FOV = 220,
+        ShowFOV = true,
+        Smooth = true,
+        Smoothness = 0.35,
+        Prediction = 0.135,
+        UsePrediction = true,
+    },
+    SilentAim = {
+        Enabled = true,
+        AimPart = "HumanoidRootPart",
+        FOV = 200,
+        ShowFOV = true,
+        Tracers = false,
+        HitChance = 100,
+        Prediction = 0.135,
+        UsePrediction = true,
+        WallCheck = false,
+        StickyTarget = true,
+    },
+    NoSpread = {
+        Enabled = true,
+        Amount = 0,
+    },
+    RapidFire = {
+        Enabled = false,
+        Rate = 0.08,
+    },
+    Whitelist = {
+        Players = {},
+        Friends = true,
+        Team = false,
     },
     ESP = {
         Enabled = false,
@@ -24,16 +89,49 @@ local Settings = {
         ActiveDrawings = {},
         ActiveHighlights = {}
     },
-    SilentAim = {
-        Enabled = false,
-        FOV = 150,
-        HitPart = "Head", -- "Head" или "HumanoidRootPart"
-        ShowFOV = true
+    Misc = {
+        Fly = false,
+        FlySpeed = 50,
+        VClipDistance = 10,
     }
 }
 
+local friendCache = {}
+local function IsFriendCached(userId)
+    if not userId then return false end
+    if friendCache[userId] ~= nil then
+        return friendCache[userId]
+    end
+    task.spawn(function()
+        local f = false
+        pcall(function()
+            f = LocalPlayer:IsFriendsWith(userId)
+        end)
+        friendCache[userId] = f
+    end)
+    return false
+end
+
+local function IsWhitelisted(player)
+    if not player then return false end
+    if Settings.Whitelist.Players[player.Name] 
+       or Settings.Whitelist.Players[player.UserId] 
+       or Settings.Whitelist.Players[tostring(player.UserId)] 
+       or Settings.Whitelist.Players[string.lower(player.Name)] then
+        return true
+    end
+    if Settings.Whitelist.Team and LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
+        return true
+    end
+    if Settings.Whitelist.Friends then
+        if IsFriendCached(player.UserId) then return true end
+    end
+    return false
+end
+
 local function IsValidTarget(player)
     if player == LocalPlayer or not player.Character then return false end
+    if IsWhitelisted(player) then return false end
     local char = player.Character
     local humanoid = char:FindFirstChild("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -49,6 +147,60 @@ local function IsValidTarget(player)
     end
     
     return true
+end
+
+-- Core Aim Helpers (Top Level)
+local function GetCharacterAimPart(character, chosenPart)
+    if not character then return nil end
+    local partName = chosenPart or "HumanoidRootPart"
+    if partName == "Random" then
+        local parts = {"Head", "UpperTorso", "HumanoidRootPart"}
+        partName = parts[math.random(1, #parts)]
+    end
+    local part = character:FindFirstChild(partName)
+    if not part and (partName == "Head" or partName == "UpperTorso") then
+        part = character:FindFirstChild("Torso") or character:FindFirstChild("HumanoidRootPart")
+    end
+    return part or character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
+end
+
+local function GetPredictedPosition(part, usePred, predAmount)
+    if not part then return nil end
+    local pos = part.Position
+    if usePred then
+        local char = part.Parent
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local vel = (hrp and (hrp.AssemblyLinearVelocity or hrp.Velocity)) or part.AssemblyLinearVelocity or part.Velocity
+        if vel then
+            pos = pos + (vel * (predAmount or 0.135))
+        end
+    end
+    return pos
+end
+
+local function GetClosestPlayerForAim()
+    local cam = workspace.CurrentCamera or Camera
+    if not cam then return nil end
+    local closest = nil
+    local shortestDist = Settings.Aimbot.FOV or 220
+    local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if IsValidTarget(player) then
+            local part = GetCharacterAimPart(player.Character, Settings.Aimbot.AimPart)
+            if part then
+                local screenPos, onScreen = cam:WorldToViewportPoint(part.Position)
+                if onScreen and screenPos.Z > 0 then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if dist <= shortestDist then
+                        shortestDist = dist
+                        closest = player
+                    end
+                end
+            end
+        end
+    end
+    return closest
 end
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -193,8 +345,8 @@ Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name = "MainFrame"
 MainFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
-MainFrame.Position = UDim2.new(0.5, -190, 0.5, -140)
-MainFrame.Size = UDim2.new(0, 380, 0, 280)
+MainFrame.Position = UDim2.new(0.5, -215, 0.5, -170)
+MainFrame.Size = UDim2.new(0, 440, 0, 350)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -241,20 +393,20 @@ end)
 
 local TabBar = Instance.new("Frame", MainFrame)
 TabBar.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
-TabBar.Position = UDim2.new(0, 15, 0, 50)
-TabBar.Size = UDim2.new(1, -30, 0, 36)
+TabBar.Position = UDim2.new(0, 12, 0, 48)
+TabBar.Size = UDim2.new(1, -24, 0, 34)
 Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 8)
 
 local TabListLayout = Instance.new("UIListLayout", TabBar)
 TabListLayout.FillDirection = Enum.FillDirection.Horizontal
 TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 TabListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-TabListLayout.Padding = UDim.new(0, 4)
+TabListLayout.Padding = UDim.new(0, 6)
 
 local ContentContainer = Instance.new("Frame", MainFrame)
 ContentContainer.BackgroundTransparency = 1
-ContentContainer.Position = UDim2.new(0, 15, 0, 96)
-ContentContainer.Size = UDim2.new(1, -30, 1, -106)
+ContentContainer.Position = UDim2.new(0, 12, 0, 88)
+ContentContainer.Size = UDim2.new(1, -24, 1, -96)
 
 local Tabs = {}
 local TabButtons = {}
@@ -262,17 +414,27 @@ local TabButtons = {}
 local function CreateTab(tabName)
     local tabBtn = Instance.new("TextButton", TabBar)
     tabBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
-    tabBtn.Size = UDim2.new(0, 110, 0, 28)
+    tabBtn.Size = UDim2.new(0, 88, 0, 26)
     tabBtn.Font = Enum.Font.GothamBold
     tabBtn.Text = tabName
     tabBtn.TextColor3 = Color3.fromRGB(150, 140, 170)
     tabBtn.TextSize = 11
     Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 6)
 
-    local pageFrame = Instance.new("Frame", ContentContainer)
+    local pageFrame = Instance.new("ScrollingFrame", ContentContainer)
     pageFrame.BackgroundTransparency = 1
+    pageFrame.BorderSizePixel = 0
     pageFrame.Size = UDim2.new(1, 0, 1, 0)
+    pageFrame.ScrollBarThickness = 3
+    pageFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 40, 255)
+    pageFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    pageFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
     pageFrame.Visible = false
+
+    local pad = Instance.new("UIPadding", pageFrame)
+    pad.PaddingRight = UDim.new(0, 6)
+    pad.PaddingTop = UDim.new(0, 2)
+    pad.PaddingBottom = UDim.new(0, 8)
 
     local pageList = Instance.new("UIListLayout", pageFrame)
     pageList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -294,28 +456,36 @@ local function CreateTab(tabName)
     return pageFrame
 end
 
-local AimbotPage = CreateTab("AIMBOT")
-local ESPPage = CreateTab("ESP")
-local SilentPage = CreateTab("SILENT")
+-- UI Helper Components
+local function CreateSection(parent, text)
+    local sec = Instance.new("Frame", parent)
+    sec.BackgroundTransparency = 1
+    sec.Size = UDim2.new(1, 0, 0, 22)
 
-Tabs["AIMBOT"].Visible = true
-TabButtons["AIMBOT"].BackgroundColor3 = Color3.fromRGB(110, 25, 200)
-TabButtons["AIMBOT"].TextColor3 = Color3.fromRGB(255, 255, 255)
+    local lbl = Instance.new("TextLabel", sec)
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, 0, 1, 0)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.Text = "─── " .. string.upper(text) .. " ───"
+    lbl.TextColor3 = Color3.fromRGB(170, 120, 255)
+    lbl.TextSize = 10
+    return sec
+end
 
 local function CreateToggle(parent, text, defaultState, callback)
     local btn = Instance.new("TextButton", parent)
     btn.BackgroundColor3 = defaultState and Color3.fromRGB(110, 25, 200) or Color3.fromRGB(20, 15, 32)
-    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.Size = UDim2.new(1, 0, 0, 34)
     btn.Font = Enum.Font.GothamSemibold
     btn.Text = text .. (defaultState and ": ON" or ": OFF")
     btn.TextColor3 = defaultState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 180, 210)
-    btn.TextSize = 12
-    
+    btn.TextSize = 11
+
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     local stroke = Instance.new("UIStroke", btn)
     stroke.Color = Color3.fromRGB(90, 40, 160)
     stroke.Thickness = 1.2
-    
+
     local active = defaultState
     btn.MouseButton1Click:Connect(function()
         active = not active
@@ -330,8 +500,482 @@ local function CreateToggle(parent, text, defaultState, callback)
         end
         callback(active)
     end)
+
+    return {
+        Button = btn,
+        Set = function(self, val)
+            active = val
+            btn.BackgroundColor3 = active and Color3.fromRGB(110, 25, 200) or Color3.fromRGB(20, 15, 32)
+            btn.TextColor3 = active and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 180, 210)
+            btn.Text = text .. (active and ": ON" or ": OFF")
+            callback(active)
+        end
+    }
+end
+
+local function CreateButton(parent, label, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.BackgroundColor3 = Color3.fromRGB(22, 16, 36)
+    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = label
+    btn.TextColor3 = Color3.fromRGB(220, 190, 255)
+    btn.TextSize = 11
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(110, 40, 190)
+    stroke.Thickness = 1.2
+
+    btn.MouseButton1Click:Connect(function()
+        callback()
+    end)
+
     return btn
 end
+
+local function CreateCycle(parent, label, options, defaultIndex, callback)
+    local idx = defaultIndex or 1
+    local btn = Instance.new("TextButton", parent)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.Text = label .. ": [" .. tostring(options[idx]) .. "]"
+    btn.TextColor3 = Color3.fromRGB(210, 190, 255)
+    btn.TextSize = 11
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color = Color3.fromRGB(90, 40, 160)
+    stroke.Thickness = 1.2
+
+    btn.MouseButton1Click:Connect(function()
+        idx = idx + 1
+        if idx > #options then idx = 1 end
+        btn.Text = label .. ": [" .. tostring(options[idx]) .. "]"
+        callback(options[idx])
+    end)
+
+    return {
+        Button = btn,
+        Get = function() return options[idx] end,
+        Set = function(self, val)
+            for i, opt in ipairs(options) do
+                if opt == val then
+                    idx = i
+                    btn.Text = label .. ": [" .. tostring(options[idx]) .. "]"
+                    callback(options[idx])
+                    break
+                end
+            end
+        end
+    }
+end
+
+local function CreateSlider(parent, label, minVal, maxVal, defaultVal, suffix, step, callback)
+    local currentVal = defaultVal
+    local suf = suffix or ""
+    local stp = step or 1
+
+    local frame = Instance.new("Frame", parent)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+    frame.Size = UDim2.new(1, 0, 0, 46)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(90, 40, 160)
+    stroke.Thickness = 1.2
+
+    local titleLbl = Instance.new("TextLabel", frame)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Position = UDim2.new(0, 10, 0, 4)
+    titleLbl.Size = UDim2.new(0.6, 0, 0, 18)
+    titleLbl.Font = Enum.Font.GothamSemibold
+    titleLbl.Text = label
+    titleLbl.TextColor3 = Color3.fromRGB(210, 190, 255)
+    titleLbl.TextSize = 11
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local valLbl = Instance.new("TextLabel", frame)
+    valLbl.BackgroundTransparency = 1
+    valLbl.Position = UDim2.new(0.6, 0, 0, 4)
+    valLbl.Size = UDim2.new(0.4, -10, 0, 18)
+    valLbl.Font = Enum.Font.GothamBold
+    valLbl.Text = tostring(currentVal) .. suf
+    valLbl.TextColor3 = Color3.fromRGB(180, 120, 255)
+    valLbl.TextSize = 11
+    valLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+    local minusBtn = Instance.new("TextButton", frame)
+    minusBtn.BackgroundColor3 = Color3.fromRGB(32, 24, 48)
+    minusBtn.Position = UDim2.new(0, 10, 0, 24)
+    minusBtn.Size = UDim2.new(0, 28, 0, 16)
+    minusBtn.Font = Enum.Font.GothamBold
+    minusBtn.Text = "-"
+    minusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minusBtn.TextSize = 12
+    Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 4)
+
+    local plusBtn = Instance.new("TextButton", frame)
+    plusBtn.BackgroundColor3 = Color3.fromRGB(32, 24, 48)
+    plusBtn.Position = UDim2.new(1, -38, 0, 24)
+    plusBtn.Size = UDim2.new(0, 28, 0, 16)
+    plusBtn.Font = Enum.Font.GothamBold
+    plusBtn.Text = "+"
+    plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    plusBtn.TextSize = 12
+    Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 4)
+
+    local barBg = Instance.new("TextButton", frame)
+    barBg.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
+    barBg.Position = UDim2.new(0, 44, 0, 28)
+    barBg.Size = UDim2.new(1, -88, 0, 8)
+    barBg.Text = ""
+    barBg.AutoButtonColor = false
+    Instance.new("UICorner", barBg).CornerRadius = UDim.new(1, 0)
+
+    local barFill = Instance.new("Frame", barBg)
+    barFill.BackgroundColor3 = Color3.fromRGB(140, 40, 255)
+    barFill.Size = UDim2.new(math.clamp((currentVal - minVal) / (maxVal - minVal), 0, 1), 0, 1, 0)
+    Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
+
+    local function updateVal(newVal)
+        currentVal = math.clamp(newVal, minVal, maxVal)
+        if stp < 1 then
+            currentVal = math.floor(currentVal * 100 + 0.5) / 100
+        else
+            currentVal = math.floor(currentVal + 0.5)
+        end
+        valLbl.Text = tostring(currentVal) .. suf
+        barFill.Size = UDim2.new(math.clamp((currentVal - minVal) / (maxVal - minVal), 0, 1), 0, 1, 0)
+        callback(currentVal)
+    end
+
+    minusBtn.MouseButton1Click:Connect(function()
+        updateVal(currentVal - stp)
+    end)
+
+    plusBtn.MouseButton1Click:Connect(function()
+        updateVal(currentVal + stp)
+    end)
+
+    barBg.MouseButton1Click:Connect(function()
+        local mousePos = game:GetService("UserInputService"):GetMouseLocation().X
+        local absPos = barBg.AbsolutePosition.X
+        local absSize = barBg.AbsoluteSize.X
+        if absSize > 0 then
+            local pct = math.clamp((mousePos - absPos) / absSize, 0, 1)
+            updateVal(minVal + pct * (maxVal - minVal))
+        end
+    end)
+
+    return {
+        Frame = frame,
+        Set = function(self, val)
+            updateVal(val)
+        end
+    }
+end
+
+local AimbotPage = CreateTab("AIMBOT")
+local ESPPage = CreateTab("ESP")
+local WhitelistPage = CreateTab("WHITELIST")
+local MiscPage = CreateTab("MISC")
+
+Tabs["AIMBOT"].Visible = true
+TabButtons["AIMBOT"].BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+TabButtons["AIMBOT"].TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local AimActive = false
+local aimbotToggleObj = nil
+
+-- Float Button 1: Regular Aimbot (CamLock)
+local AimFloatBtn = Instance.new("TextButton", ScreenGui)
+AimFloatBtn.Name = "CociteAimFloatBtn"
+AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+AimFloatBtn.Position = UDim2.new(0.82, 0, 0.36, 0)
+AimFloatBtn.Size = UDim2.new(0, 105, 0, 42)
+AimFloatBtn.Font = Enum.Font.GothamBold
+AimFloatBtn.Text = "🎯 AIM: OFF"
+AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+AimFloatBtn.TextSize = 12
+AimFloatBtn.Visible = false
+AimFloatBtn.Active = true
+AimFloatBtn.Draggable = true
+Instance.new("UICorner", AimFloatBtn).CornerRadius = UDim.new(0, 10)
+local aimFloatStroke = Instance.new("UIStroke", AimFloatBtn)
+aimFloatStroke.Color = Color3.fromRGB(120, 40, 200)
+aimFloatStroke.Thickness = 1.5
+
+-- Float Button 2: Silent Aim / Bullet TP
+local SilentFloatBtn = Instance.new("TextButton", ScreenGui)
+SilentFloatBtn.Name = "CociteSilentFloatBtn"
+SilentFloatBtn.BackgroundColor3 = Settings.SilentAim.Enabled and Color3.fromRGB(0, 130, 180) or Color3.fromRGB(16, 22, 32)
+SilentFloatBtn.Position = UDim2.new(0.82, 0, 0.44, 0)
+SilentFloatBtn.Size = UDim2.new(0, 105, 0, 42)
+SilentFloatBtn.Font = Enum.Font.GothamBold
+SilentFloatBtn.Text = Settings.SilentAim.Enabled and "🔮 BULLET TP: ON" or "🔮 BULLET TP: OFF"
+SilentFloatBtn.TextColor3 = Settings.SilentAim.Enabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 200, 230)
+SilentFloatBtn.TextSize = 12
+SilentFloatBtn.Visible = false
+SilentFloatBtn.Active = true
+SilentFloatBtn.Draggable = true
+Instance.new("UICorner", SilentFloatBtn).CornerRadius = UDim.new(0, 10)
+local silentFloatStroke = Instance.new("UIStroke", SilentFloatBtn)
+silentFloatStroke.Color = Settings.SilentAim.Enabled and Color3.fromRGB(0, 220, 255) or Color3.fromRGB(40, 90, 130)
+silentFloatStroke.Thickness = 1.5
+
+-- Float Button 3: Fly
+local FlyFloatBtn = Instance.new("TextButton", ScreenGui)
+FlyFloatBtn.Name = "CociteFlyFloatBtn"
+FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(24, 18, 22)
+FlyFloatBtn.Position = UDim2.new(0.82, 0, 0.52, 0)
+FlyFloatBtn.Size = UDim2.new(0, 105, 0, 42)
+FlyFloatBtn.Font = Enum.Font.GothamBold
+FlyFloatBtn.Text = "🚀 FLY: OFF"
+FlyFloatBtn.TextColor3 = Color3.fromRGB(240, 180, 160)
+FlyFloatBtn.TextSize = 12
+FlyFloatBtn.Visible = false
+FlyFloatBtn.Active = true
+FlyFloatBtn.Draggable = true
+Instance.new("UICorner", FlyFloatBtn).CornerRadius = UDim.new(0, 10)
+local flyFloatStroke = Instance.new("UIStroke", FlyFloatBtn)
+flyFloatStroke.Color = Color3.fromRGB(160, 60, 40)
+flyFloatStroke.Thickness = 1.5
+
+local updatingFromFloat = false
+local silentToggleObj = nil
+local flyConnection = nil
+local flyToggleObj = nil
+
+local currentFlyCFrame = nil
+
+local function DoVClip(distance)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum or hum.Health <= 0 then return end
+
+    hrp.CFrame = hrp.CFrame + Vector3.new(0, distance, 0)
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    if currentFlyCFrame then
+        currentFlyCFrame = currentFlyCFrame + Vector3.new(0, distance, 0)
+    end
+end
+
+local function UpdateFlyState(state, fromUI)
+    Settings.Misc.Fly = state
+    if FlyFloatBtn then
+        if state then
+            FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 30)
+            FlyFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            FlyFloatBtn.Text = "🚀 FLY: ON"
+            flyFloatStroke.Color = Color3.fromRGB(255, 120, 60)
+        else
+            FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(24, 18, 22)
+            FlyFloatBtn.TextColor3 = Color3.fromRGB(240, 180, 160)
+            FlyFloatBtn.Text = "🚀 FLY: OFF"
+            flyFloatStroke.Color = Color3.fromRGB(160, 60, 40)
+        end
+    end
+    if not fromUI and flyToggleObj and flyToggleObj.Set then
+        flyToggleObj:Set(state)
+    end
+
+    if state then
+        if flyConnection then return end
+        local startChar = LocalPlayer.Character
+        local startHrp = startChar and startChar:FindFirstChild("HumanoidRootPart")
+        if startHrp then
+            currentFlyCFrame = startHrp.CFrame
+        end
+
+        flyConnection = RunService.Heartbeat:Connect(function(dt)
+            if not Settings.Misc.Fly then
+                if flyConnection then
+                    flyConnection:Disconnect()
+                    flyConnection = nil
+                end
+                return
+            end
+
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if not hrp or not hum or hum.Health <= 0 then return end
+
+            local cam = workspace.CurrentCamera or Camera
+            local camCF = cam and cam.CFrame
+            if not camCF then return end
+
+            if not currentFlyCFrame then
+                currentFlyCFrame = hrp.CFrame
+            end
+
+            for _, part in ipairs(char:GetChildren()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+
+            hrp.AssemblyLinearVelocity = Vector3.zero
+
+            local moveVector = Vector3.zero
+
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                moveVector = moveVector + camCF.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                moveVector = moveVector - camCF.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                moveVector = moveVector - camCF.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                moveVector = moveVector + camCF.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                moveVector = moveVector + Vector3.new(0, 1, 0)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                moveVector = moveVector - Vector3.new(0, 1, 0)
+            end
+
+            if moveVector.Magnitude == 0 and hum.MoveDirection.Magnitude > 0 then
+                local moveDir = hum.MoveDirection
+                moveVector = moveVector + Vector3.new(moveDir.X, camCF.LookVector.Y * moveDir.Magnitude, moveDir.Z)
+            end
+
+            if moveVector.Magnitude > 0 then
+                moveVector = moveVector.Unit
+                local speed = Settings.Misc.FlySpeed or 50
+                local deltaTime = dt or 0.016
+                currentFlyCFrame = currentFlyCFrame + (moveVector * (speed * deltaTime))
+            end
+
+            hrp.CFrame = CFrame.new(currentFlyCFrame.Position) * camCF.Rotation
+            hrp.AssemblyLinearVelocity = Vector3.zero
+        end)
+        table.insert(_G.CociteConnections, flyConnection)
+    else
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+        currentFlyCFrame = nil
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.AssemblyLinearVelocity = Vector3.zero
+        end
+    end
+end
+
+FlyFloatBtn.MouseButton1Click:Connect(function()
+    UpdateFlyState(not Settings.Misc.Fly, false)
+end)
+
+local function UpdateAimState(state)
+    AimActive = state
+    if state then
+        Settings.Aimbot.LockedTarget = GetClosestPlayerForAim()
+        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+        AimFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        AimFloatBtn.Text = "🎯 AIM: ON"
+        aimFloatStroke.Color = Color3.fromRGB(220, 90, 255)
+    else
+        Settings.Aimbot.LockedTarget = nil
+        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+        AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+        AimFloatBtn.Text = "🎯 AIM: OFF"
+        aimFloatStroke.Color = Color3.fromRGB(120, 40, 200)
+    end
+end
+
+AimFloatBtn.MouseButton1Click:Connect(function()
+    UpdateAimState(not AimActive)
+end)
+
+table.insert(_G.CociteConnections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Q then
+        if Settings.Aimbot.Enabled then
+            UpdateAimState(not AimActive)
+        end
+    elseif input.KeyCode == Enum.KeyCode.X then
+        UpdateFlyState(not Settings.Misc.Fly, false)
+    elseif input.KeyCode == Enum.KeyCode.B then
+        DoVClip(Settings.Misc.VClipDistance)
+    elseif input.KeyCode == Enum.KeyCode.V then
+        DoVClip(-Settings.Misc.VClipDistance)
+    end
+end))
+
+local function UpdateSilentAimState(state, fromUI)
+    Settings.SilentAim.Enabled = state
+    if state then
+        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 180)
+        SilentFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        SilentFloatBtn.Text = "🔮 BULLET TP: ON"
+        silentFloatStroke.Color = Color3.fromRGB(0, 220, 255)
+    else
+        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(16, 22, 32)
+        SilentFloatBtn.TextColor3 = Color3.fromRGB(150, 200, 230)
+        SilentFloatBtn.Text = "🔮 BULLET TP: OFF"
+        silentFloatStroke.Color = Color3.fromRGB(40, 90, 130)
+    end
+    if not fromUI and silentToggleObj and silentToggleObj.Set then
+        updatingFromFloat = true
+        silentToggleObj:Set(state)
+        updatingFromFloat = false
+    end
+end
+
+local lockedSilentTarget = nil
+local IsWallCheckVisible
+
+local function ToggleSilentLock()
+    if not Settings.SilentAim.Enabled then return end
+    if lockedSilentTarget then
+        lockedSilentTarget = nil
+        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 180)
+        SilentFloatBtn.Text = "🔮 BULLET TP: ON"
+    else
+        local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        local shortestDist = Settings.SilentAim.FOV
+        local bestTarget = nil
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if IsValidTarget(player) then
+                local part = GetCharacterAimPart(player.Character, Settings.SilentAim.AimPart)
+                if part then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if onScreen and screenPos.Z > 0 then
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                        if dist <= shortestDist then
+                            if not Settings.SilentAim.WallCheck or IsWallCheckVisible(part, player.Character) then
+                                shortestDist = dist
+                                bestTarget = player
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        if bestTarget then
+            lockedSilentTarget = bestTarget
+            SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+            SilentFloatBtn.Text = "🔮 LOCKED: " .. bestTarget.Name
+        end
+    end
+end
+
+SilentFloatBtn.MouseButton1Click:Connect(function()
+    if not Settings.SilentAim.Enabled then
+        UpdateSilentAimState(true, false)
+    end
+    ToggleSilentLock()
+end)
 
 LoginBtn.MouseButton1Click:Connect(function()
     StatusLabel.Text = "Статус: Проверка ключа..."
@@ -348,286 +992,404 @@ LoginBtn.MouseButton1Click:Connect(function()
         AuthFrame:Destroy()
         
         ToggleButton.Visible = true
+        AimFloatBtn.Visible = true
+        SilentFloatBtn.Visible = true
+        FlyFloatBtn.Visible = true
         MainFrame.Visible = true
         TweenService:Create(MainFrame, TweenInfo.new(0.5), {BackgroundTransparency = 0}):Play()
         TweenService:Create(MainStroke, TweenInfo.new(0.5), {Transparency = 0}):Play()
+
+        UpdateAimState(false)
+        UpdateSilentAimState(Settings.SilentAim.Enabled, true)
+        UpdateFlyState(Settings.Misc.Fly, true)
     else
         StatusLabel.Text = "Статус: ❌ Неверный ключ!"
         StatusLabel.TextColor3 = Color3.fromRGB(255, 70, 90)
     end
 end)
 
-local AimFloatBtn = Instance.new("TextButton", ScreenGui)
-AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-AimFloatBtn.Position = UDim2.new(0.8, 0, 0.4, 0)
-AimFloatBtn.Size = UDim2.new(0, 100, 0, 46)
-AimFloatBtn.Font = Enum.Font.GothamBold
-AimFloatBtn.Text = "🎯 AIM: OFF"
-AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
-AimFloatBtn.TextSize = 12
-AimFloatBtn.Visible = false
-AimFloatBtn.Active = true
-AimFloatBtn.Draggable = true
-Instance.new("UICorner", AimFloatBtn).CornerRadius = UDim.new(0, 10)
+local isInternalRay = false
 
-local function GetTargetAimPosition(character)
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        return hrp.Position + Vector3.new(0, 0.75, 0)
+IsWallCheckVisible = function(part, targetChar)
+    if not Settings.SilentAim.WallCheck then return true end
+    local localChar = LocalPlayer.Character
+    if not localChar then return false end
+
+    local origin = Camera.CFrame.Position
+    local dest = part.Position
+    local dir = dest - origin
+
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {localChar, Camera}
+    params.IgnoreWater = true
+
+    isInternalRay = true
+    local hit = workspace:Raycast(origin, dir, params)
+    isInternalRay = false
+    if not hit or hit.Instance:IsDescendantOf(targetChar) then
+        return true
     end
-    return nil
+    return false
 end
 
-local function GetClosestToCenter()
-    local closestP = nil
-    local shortestDist = Settings.Aimbot.FOV
-    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if IsValidTarget(player) then
-            local aimPos = GetTargetAimPosition(player.Character)
-            if aimPos then
-                local pos, onScreen = Camera:WorldToViewportPoint(aimPos)
-                if onScreen then
-                    local magnitude = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                    if magnitude < shortestDist then
-                        shortestDist = magnitude
-                        closestP = player
-                    end
+local currentSilentTarget = nil
+local currentSilentTargetPart = nil
+local currentSilentAimPos = nil
+
+local equippedToolName = nil
+
+local function OnCharacterAdded(char)
+    equippedToolName = nil
+    char.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            equippedToolName = child.Name
+        end
+    end)
+    char.ChildRemoved:Connect(function(child)
+        if child:IsA("Tool") and equippedToolName == child.Name then
+            equippedToolName = nil
+        end
+    end)
+end
+
+if LocalPlayer.Character then
+    OnCharacterAdded(LocalPlayer.Character)
+    for _, child in ipairs(LocalPlayer.Character:GetChildren()) do
+        if child:IsA("Tool") then
+            equippedToolName = child.Name
+            break
+        end
+    end
+end
+LocalPlayer.CharacterAdded:Connect(OnCharacterAdded)
+
+-- [[ NO SPREAD ENGINE ]]
+pcall(function()
+    if hookfunction and newcclosure and checkcaller then
+        local oldRandom
+        oldRandom = hookfunction(math.random, newcclosure(function(...)
+            local args = {...}
+            if checkcaller() then
+                return oldRandom(...)
+            end
+
+            if Settings.NoSpread and Settings.NoSpread.Enabled then
+                if (#args == 0) or 
+                   (args[1] == -0.05 and args[2] == 0.05) or 
+                   (args[1] == -0.1 and args[2] == 0.1) or
+                   (args[1] == -0.1) or
+                   (args[1] == -0.05) then
+                    local spread = Settings.NoSpread.Amount or 0
+                    return oldRandom(...) * (spread / 100)
+                end
+            end
+
+            return oldRandom(...)
+        end))
+    end
+end)
+
+local function CalcRayDirection(origin, targetPos, spread)
+    local dir = (targetPos - origin).Unit
+    if spread and spread > 0 then
+        local spreadDist = spread * ((targetPos - origin).Magnitude / 100)
+        dir = ((targetPos + Vector3.new(
+            math.random(-spreadDist * 1000, spreadDist * 1000) / 1000,
+            math.random(-spreadDist * 1000, spreadDist * 1000) / 1000,
+            math.random(-spreadDist * 1000, spreadDist * 1000) / 1000
+        )) - origin).Unit
+    end
+    return dir * 1000
+end
+
+-- [[ RAPID FIRE ENGINE ]]
+local rapidFireLastShot = 0
+
+table.insert(_G.CociteConnections, RunService.Heartbeat:Connect(function()
+    if not Settings.RapidFire.Enabled then return end
+    if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then return end
+    local char = LocalPlayer.Character
+    local tool = char and char:FindFirstChildOfClass("Tool")
+    if not tool then return end
+    local now = tick()
+    if now - rapidFireLastShot >= (Settings.RapidFire.Rate or 0.08) then
+        rapidFireLastShot = now
+        pcall(function()
+            tool:Activate()
+        end)
+    end
+end))
+
+local function PatchGunFireRate()
+    if not getgc then return end
+    for _, v in pairs(getgc(true)) do
+        if typeof(v) == "table" then
+            for _, key in ipairs({"FireRate", "fireRate", "Cooldown", "cooldown", "FireSpeed"}) do
+                local val = rawget(v, key)
+                if type(val) == "number" and val > 0 and val < 10 then
+                    pcall(function()
+                        rawset(v, key, 0.03)
+                    end)
                 end
             end
         end
     end
-    return closestP
 end
 
-local AimActive = false
-AimFloatBtn.MouseButton1Click:Connect(function()
-    AimActive = not AimActive
-    if AimActive then
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        AimFloatBtn.Text = "🎯 AIM: ON"
-        Settings.Aimbot.LockedTarget = GetClosestToCenter()
-    else
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
-        AimFloatBtn.Text = "🎯 AIM: OFF"
-        Settings.Aimbot.LockedTarget = nil
-    end
+task.spawn(function()
+    task.wait(1)
+    PatchGunFireRate()
+end)
+LocalPlayer.CharacterAdded:Connect(function()
+    task.spawn(function()
+        task.wait(1)
+        PatchGunFireRate()
+    end)
 end)
 
-RunService.RenderStepped:Connect(function()
-    if Settings.Aimbot.Enabled and AimActive then
-        local target = Settings.Aimbot.LockedTarget
-        if target and IsValidTarget(target) then
-            local aimPos = GetTargetAimPosition(target.Character)
-            if aimPos then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPos)
-            end
-        else
-            Settings.Aimbot.LockedTarget = GetClosestToCenter()
-        end
-    end
-end)
-
--- ==================== SILENT AIM LOGIC & UI ====================
-local SilentFOVCircle = Drawing.new("Circle")
-SilentFOVCircle.Visible = false
-SilentFOVCircle.Thickness = 1.5
-SilentFOVCircle.Color = Color3.fromRGB(180, 50, 255)
-SilentFOVCircle.Filled = false
-SilentFOVCircle.Radius = Settings.SilentAim.FOV
-
-RunService.RenderStepped:Connect(function()
-    if Settings.SilentAim.Enabled and Settings.SilentAim.ShowFOV then
-        SilentFOVCircle.Visible = true
-        SilentFOVCircle.Radius = Settings.SilentAim.FOV
-        SilentFOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    else
-        SilentFOVCircle.Visible = false
-    end
-end)
-
-local function GetClosestSilentTarget()
-    local closestP = nil
-    local shortestDist = Settings.SilentAim.FOV
-    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if IsValidTarget(player) then
-            local char = player.Character
-            local part = char:FindFirstChild(Settings.SilentAim.HitPart) or char:FindFirstChild("HumanoidRootPart")
-            if part then
-                local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local magnitude = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                    if magnitude < shortestDist then
-                        shortestDist = magnitude
-                        closestP = player
-                    end
-                end
-            end
-        end
-    end
-    return closestP
-end
+-- Visuals: FOV Circles & Snapline Tracer
+local AimbotFOVCircle = nil
+local SilentFOVCircle = nil
+local SilentTracerLine = nil
 
 pcall(function()
-    local mt = getrawmetatable(game)
-    setreadonly(mt, false)
-    local oldNamecall = mt.__namecall
-    
-    mt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-        if Settings.SilentAim.Enabled and (method == "FindPartOnRay" or method == "FindPartOnRayWithIgnoreList") then
-            local target = GetClosestSilentTarget()
-            if target and target.Character then
-                local part = target.Character:FindFirstChild(Settings.SilentAim.HitPart) or target.Character:FindFirstChild("HumanoidRootPart")
-                if part and args[1] then
-                    local origin = args[1].Origin
-                    local direction = (part.Position - origin).Unit * 1000
-                    args[1] = Ray.new(origin, direction)
-                    return oldNamecall(self, unpack(args))
+    if Drawing and Drawing.new then
+        local aCircle = Drawing.new("Circle")
+        aCircle.Visible = false
+        aCircle.Filled = false
+        aCircle.Thickness = 1.5
+        aCircle.Color = Color3.fromRGB(180, 60, 255)
+        aCircle.Transparency = 0.7
+        aCircle.Radius = Settings.Aimbot.FOV
+        table.insert(_G.CociteDrawings, aCircle)
+        AimbotFOVCircle = aCircle
+
+        local sCircle = Drawing.new("Circle")
+        sCircle.Visible = false
+        sCircle.Filled = false
+        sCircle.Thickness = 1.5
+        sCircle.Color = Color3.fromRGB(0, 210, 255)
+        sCircle.Transparency = 0.7
+        sCircle.Radius = Settings.SilentAim.FOV
+        table.insert(_G.CociteDrawings, sCircle)
+        SilentFOVCircle = sCircle
+
+        local sLine = Drawing.new("Line")
+        sLine.Visible = false
+        sLine.Thickness = 1.5
+        sLine.Color = Color3.fromRGB(200, 80, 255)
+        sLine.Transparency = 0.8
+        table.insert(_G.CociteDrawings, sLine)
+        SilentTracerLine = sLine
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local bestTarget = nil
+    local bestPart = nil
+    local bestPos = nil
+
+    if Settings.SilentAim.Enabled then
+        if lockedSilentTarget and IsValidTarget(lockedSilentTarget) then
+            local part = GetCharacterAimPart(lockedSilentTarget.Character, Settings.SilentAim.AimPart)
+            if part then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                if onScreen and screenPos.Z > 0 then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if dist <= Settings.SilentAim.FOV then
+                        if not Settings.SilentAim.WallCheck or IsWallCheckVisible(part, lockedSilentTarget.Character) then
+                            bestTarget = lockedSilentTarget
+                            bestPart = part
+                            bestPos = GetPredictedPosition(part, Settings.SilentAim.UsePrediction, Settings.SilentAim.Prediction)
+                        end
+                    end
                 end
             end
-        elseif Settings.SilentAim.Enabled and method == "Raycast" then
-            local target = GetClosestSilentTarget()
+        else
+            if lockedSilentTarget then
+                lockedSilentTarget = nil
+                SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 180)
+                SilentFloatBtn.Text = "🔮 BULLET TP: ON"
+            end
+        end
+    end
+
+    currentSilentTarget = bestTarget
+    currentSilentTargetPart = bestPart
+    currentSilentAimPos = bestPos
+
+    if AimbotFOVCircle then
+        AimbotFOVCircle.Visible = Settings.Aimbot.Enabled and Settings.Aimbot.ShowFOV
+        AimbotFOVCircle.Radius = Settings.Aimbot.FOV
+        AimbotFOVCircle.Position = center
+    end
+    if SilentFOVCircle then
+        SilentFOVCircle.Visible = Settings.SilentAim.Enabled and Settings.SilentAim.ShowFOV
+        SilentFOVCircle.Radius = Settings.SilentAim.FOV
+        SilentFOVCircle.Position = center
+    end
+
+    if SilentTracerLine then
+        if Settings.SilentAim.Enabled and Settings.SilentAim.Tracers and currentSilentTargetPart then
+            local screenPos, onScreen = Camera:WorldToViewportPoint(currentSilentTargetPart.Position)
+            if onScreen and screenPos.Z > 0 then
+                SilentTracerLine.From = center
+                SilentTracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
+                SilentTracerLine.Visible = true
+            else
+                SilentTracerLine.Visible = false
+            end
+        else
+            SilentTracerLine.Visible = false
+        end
+    end
+end)
+
+-- [[ ULTIMATE BULLET TP & DA HOOD REDIRECTION ENGINE ]]
+table.insert(_G.CociteConnections, workspace.ChildAdded:Connect(function(child)
+    if Settings.SilentAim.Enabled and currentSilentAimPos then
+        if child:IsA("BasePart") and (child.Name == "Bullet" or child.Name == "Part" or child.Name == "Effect" or string.find(string.lower(child.Name), "bullet")) then
+            task.spawn(function()
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp and (child.Position - hrp.Position).Magnitude < 25 then
+                        child.CFrame = CFrame.new(currentSilentAimPos)
+                        child.AssemblyLinearVelocity = Vector3.zero
+                    end
+                end)
+            end)
+        end
+    end
+end))
+
+local Mouse = LocalPlayer:GetMouse()
+pcall(function()
+    if hookmetamethod and newcclosure and checkcaller then
+        local oldIndex
+        oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+            if not checkcaller() and (key == "Hit" or key == "hit" or key == "Target" or key == "target") and (self == Mouse) then
+                if Settings.SilentAim.Enabled and currentSilentAimPos then
+                    if key == "Hit" or key == "hit" then
+                        return CFrame.new(currentSilentAimPos)
+                    elseif (key == "Target" or key == "target") and currentSilentTargetPart then
+                        return currentSilentTargetPart
+                    end
+                end
+            end
+            return oldIndex(self, key)
+        end))
+    end
+end)
+
+pcall(function()
+    if hookmetamethod and getnamecallmethod and newcclosure and checkcaller then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+            local method = getnamecallmethod()
+            local args = {...}
+            local self = args[1]
+
+            if not checkcaller() and not isInternalRay and Settings.SilentAim.Enabled and currentSilentAimPos then
+                local willHit = true
+                if Settings.SilentAim.HitChance < 100 then
+                    willHit = (math.random(1, 100) <= Settings.SilentAim.HitChance)
+                end
+
+                if willHit then
+                    if self == workspace and method == "Raycast" then
+                        if typeof(args[2]) == "Vector3" and typeof(args[3]) == "Vector3" then
+                            local origin = args[2]
+                            local targetPos = currentSilentAimPos
+
+                            local toolName = equippedToolName or ""
+                            local isShotgun = string.find(string.lower(toolName), "double")
+                                           or string.find(string.lower(toolName), "tactical")
+                                           or string.find(string.lower(toolName), "shotgun")
+                            local spreadVal = 0
+                            if not (Settings.NoSpread and Settings.NoSpread.Enabled) then
+                                spreadVal = isShotgun and 6 or 0
+                            else
+                                spreadVal = ((Settings.NoSpread.Amount or 0) / 100) * (isShotgun and 6 or 0)
+                            end
+                            args[3] = CalcRayDirection(origin, targetPos, spreadVal)
+                            return oldNamecall(table.unpack(args))
+                        end
+                    elseif method == "FireServer" and tostring(self) == "MainEvent" then
+                        local eventArg = tostring(args[2] or args[1] or "")
+                        if eventArg == "UpdateMousePos" or eventArg == "UpdateMousePosI" or string.find(string.lower(eventArg), "mousepos") then
+                            if args[2] == eventArg then
+                                args[3] = currentSilentAimPos
+                            else
+                                args[2] = currentSilentAimPos
+                            end
+                            return oldNamecall(table.unpack(args))
+                        end
+                    end
+                end
+            end
+
+            return oldNamecall(...)
+        end))
+    end
+end)
+
+-- Regular Aimbot (CamLock Engine)
+RunService:BindToRenderStep("CociteCamLock", Enum.RenderPriority.Camera.Value + 1, function(dt)
+    pcall(function()
+        if Settings.Aimbot.Enabled and AimActive then
+            local cam = workspace.CurrentCamera or Camera
+            if not cam then return end
+
+            local target = Settings.Aimbot.LockedTarget
+            if target then
+                if not IsValidTarget(target) then
+                    target = nil
+                    Settings.Aimbot.LockedTarget = nil
+                else
+                    local part = GetCharacterAimPart(target.Character, Settings.Aimbot.AimPart)
+                    if part then
+                        local screenPos, onScreen = cam:WorldToViewportPoint(part.Position)
+                        local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                        if not onScreen or screenPos.Z <= 0 or dist > (Settings.Aimbot.FOV * 1.5) then
+                            target = nil
+                            Settings.Aimbot.LockedTarget = nil
+                        end
+                    else
+                        target = nil
+                        Settings.Aimbot.LockedTarget = nil
+                    end
+                end
+            end
+
+            if not target then
+                target = GetClosestPlayerForAim()
+                Settings.Aimbot.LockedTarget = target
+            end
+
             if target and target.Character then
-                local part = target.Character:FindFirstChild(Settings.SilentAim.HitPart) or target.Character:FindFirstChild("HumanoidRootPart")
-                if part and args[1] and args[2] then
-                    local origin = args[1]
-                    local direction = (part.Position - origin).Unit * 1000
-                    args[2] = direction
-                    return oldNamecall(self, unpack(args))
+                local part = GetCharacterAimPart(target.Character, Settings.Aimbot.AimPart)
+                if part then
+                    local aimPos = GetPredictedPosition(part, Settings.Aimbot.UsePrediction, Settings.Aimbot.Prediction)
+                    if aimPos then
+                        local camPos = cam.CFrame.Position
+                        local targetCF = CFrame.lookAt(camPos, aimPos)
+                        if Settings.Aimbot.Smooth then
+                            local smoothness = math.clamp(Settings.Aimbot.Smoothness or 0.35, 0.01, 1)
+                            local smoothFactor = math.clamp(1 - math.pow(1 - math.clamp(smoothness, 0.01, 0.99), (dt or 0.016) * 60), 0.01, 1)
+                            cam.CFrame = cam.CFrame:Lerp(targetCF, smoothFactor)
+                        else
+                            cam.CFrame = targetCF
+                        end
+                    end
                 end
             end
         end
-        return oldNamecall(self, ...)
     end)
 end)
-
--- Создаем контейнер для Silent Aim с кнопкой-шестеренкой
-local SilentContainer = Instance.new("Frame", SilentPage)
-SilentContainer.BackgroundTransparency = 1
-SilentContainer.Size = UDim2.new(1, 0, 0, 38)
-
-local SilentToggleBtn = Instance.new("TextButton", SilentContainer)
-SilentToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-SilentToggleBtn.Size = UDim2.new(1, -44, 1, 0)
-SilentToggleBtn.Font = Enum.Font.GothamSemibold
-SilentToggleBtn.Text = "Silent Aim: OFF"
-SilentToggleBtn.TextColor3 = Color3.fromRGB(190, 180, 210)
-SilentToggleBtn.TextSize = 12
-Instance.new("UICorner", SilentToggleBtn).CornerRadius = UDim.new(0, 8)
-local stStroke = Instance.new("UIStroke", SilentToggleBtn)
-stStroke.Color = Color3.fromRGB(90, 40, 160)
-stStroke.Thickness = 1.2
-
-local GearBtn = Instance.new("TextButton", SilentContainer)
-GearBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
-GearBtn.Position = UDim2.new(1, -38, 0, 0)
-GearBtn.Size = UDim2.new(0, 38, 1, 0)
-GearBtn.Font = Enum.Font.GothamBold
-GearBtn.Text = "⚙️"
-GearBtn.TextColor3 = Color3.fromRGB(220, 180, 255)
-GearBtn.TextSize = 14
-Instance.new("UICorner", GearBtn).CornerRadius = UDim.new(0, 8)
-local gStroke = Instance.new("UIStroke", GearBtn)
-gStroke.Color = Color3.fromRGB(90, 40, 160)
-gStroke.Thickness = 1.2
-
-local silentActive = false
-SilentToggleBtn.MouseButton1Click:Connect(function()
-    silentActive = not silentActive
-    Settings.SilentAim.Enabled = silentActive
-    if silentActive then
-        SilentToggleBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
-        SilentToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        SilentToggleBtn.Text = "Silent Aim: ON"
-    else
-        SilentToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-        SilentToggleBtn.TextColor3 = Color3.fromRGB(190, 180, 210)
-        SilentToggleBtn.Text = "Silent Aim: OFF"
-    end
-end)
-
--- Меню настроек (выдвижное по шестеренке)
-local SettingsPanel = Instance.new("Frame", SilentPage)
-SettingsPanel.BackgroundColor3 = Color3.fromRGB(16, 12, 26)
-SettingsPanel.Size = UDim2.new(1, 0, 0, 110)
-SettingsPanel.Visible = false
-Instance.new("UICorner", SettingsPanel).CornerRadius = UDim.new(0, 8)
-local spStroke = Instance.new("UIStroke", SettingsPanel)
-spStroke.Color = Color3.fromRGB(140, 40, 255)
-spStroke.Thickness = 1.2
-
-local spLayout = Instance.new("UIListLayout", SettingsPanel)
-spLayout.SortOrder = Enum.SortOrder.LayoutOrder
-spLayout.Padding = UDim.new(0, 6)
-spLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
--- Лейбл FOV
-local FOVLabel = Instance.new("TextLabel", SettingsPanel)
-FOVLabel.BackgroundTransparency = 1
-FOVLabel.Size = UDim2.new(1, -16, 0, 24)
-FOVLabel.Font = Enum.Font.GothamBold
-FOVLabel.Text = "FOV: " .. Settings.SilentAim.FOV
-FOVLabel.TextColor3 = Color3.fromRGB(210, 160, 255)
-FOVLabel.TextSize = 11
-FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- Кнопки изменения FOV
-local FOVControlFrame = Instance.new("Frame", SettingsPanel)
-FOVControlFrame.BackgroundTransparency = 1
-FOVControlFrame.Size = UDim2.new(1, -16, 0, 30)
-local fovLayout = Instance.new("UIListLayout", FOVControlFrame)
-fovLayout.FillDirection = Enum.FillDirection.Horizontal
-fovLayout.Padding = UDim.new(0, 6)
-
-local function CreateFOVBtn(text, delta)
-    local btn = Instance.new("TextButton", FOVControlFrame)
-    btn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
-    btn.Size = UDim2.new(0.48, 0, 1, 0)
-    btn.Font = Enum.Font.GothamBold
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(200, 180, 230)
-    btn.TextSize = 11
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    
-    btn.MouseButton1Click:Connect(function()
-        Settings.SilentAim.FOV = math.clamp(Settings.SilentAim.FOV + delta, 50, 500)
-        FOVLabel.Text = "FOV: " .. Settings.SilentAim.FOV
-    end)
-end
-CreateFOVBtn("[-] FOV (-25)", -25)
-CreateFOVBtn("[+] FOV (+25)", 25)
-
--- Кнопка выбора хитбокта (Голова / Торс)
-local PartToggleBtn = Instance.new("TextButton", SettingsPanel)
-PartToggleBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
-PartToggleBtn.Size = UDim2.new(1, -16, 0, 30)
-PartToggleBtn.Font = Enum.Font.GothamBold
-PartToggleBtn.Text = "Цель: Голова (Head)"
-PartToggleBtn.TextColor3 = Color3.fromRGB(200, 180, 230)
-PartToggleBtn.TextSize = 11
-Instance.new("UICorner", PartToggleBtn).CornerRadius = UDim.new(0, 6)
-
-PartToggleBtn.MouseButton1Click:Connect(function()
-    if Settings.SilentAim.HitPart == "Head" then
-        Settings.SilentAim.HitPart = "HumanoidRootPart"
-        PartToggleBtn.Text = "Цель: Торс (HRP)"
-    else
-        Settings.SilentAim.HitPart = "Head"
-        PartToggleBtn.Text = "Цель: Голова (Head)"
-    end
-end)
-
-GearBtn.MouseButton1Click:Connect(function()
-    SettingsPanel.Visible = not SettingsPanel.Visible
-end)
--- =============================================================
 
 local function RemoveHighlight(player)
     if Settings.ESP.ActiveHighlights[player] then
@@ -729,17 +1491,111 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-CreateToggle(AimbotPage, "Aimbot Master", false, function(state)
+-- Populate AIMBOT Page Controls
+CreateSection(AimbotPage, "CAMERA AIMBOT (REGULAR AIM / CAMLOCK)")
+
+aimbotToggleObj = CreateToggle(AimbotPage, "Aimbot Master", Settings.Aimbot.Enabled, function(state)
     Settings.Aimbot.Enabled = state
     AimFloatBtn.Visible = state
-    if not state then 
-        AimActive = false
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
-        AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
-        AimFloatBtn.Text = "🎯 AIM: OFF"
-        Settings.Aimbot.LockedTarget = nil
+    if not state then
+        UpdateAimState(false)
     end
 end)
+
+CreateCycle(AimbotPage, "Aim Part", {"Head", "HumanoidRootPart", "UpperTorso", "Random"}, 1, function(val)
+    Settings.Aimbot.AimPart = val
+end)
+
+CreateSlider(AimbotPage, "Aimbot FOV", 30, 500, Settings.Aimbot.FOV, "px", 10, function(val)
+    Settings.Aimbot.FOV = val
+end)
+
+CreateToggle(AimbotPage, "Show Aimbot FOV", Settings.Aimbot.ShowFOV, function(state)
+    Settings.Aimbot.ShowFOV = state
+end)
+
+CreateToggle(AimbotPage, "Smooth Tracking", Settings.Aimbot.Smooth, function(state)
+    Settings.Aimbot.Smooth = state
+end)
+
+CreateSlider(AimbotPage, "Smooth Speed", 0.05, 1, Settings.Aimbot.Smoothness, "", 0.05, function(val)
+    Settings.Aimbot.Smoothness = val
+end)
+
+CreateToggle(AimbotPage, "Aimbot Prediction", Settings.Aimbot.UsePrediction, function(state)
+    Settings.Aimbot.UsePrediction = state
+end)
+
+CreateSlider(AimbotPage, "Prediction Val", 0.05, 0.3, Settings.Aimbot.Prediction, "s", 0.005, function(val)
+    Settings.Aimbot.Prediction = val
+end)
+
+CreateSection(AimbotPage, "BULLET TP (DA HOOD 2026 ENGINE)")
+
+silentToggleObj = CreateToggle(AimbotPage, "Bullet TP Master", Settings.SilentAim.Enabled, function(state)
+    if not updatingFromFloat then
+        UpdateSilentAimState(state, true)
+    end
+end)
+
+CreateCycle(AimbotPage, "Bullet TP Part", {"HumanoidRootPart", "Head", "UpperTorso", "Random"}, 1, function(val)
+    Settings.SilentAim.AimPart = val
+end)
+
+CreateSlider(AimbotPage, "Bullet TP FOV", 30, 500, Settings.SilentAim.FOV, "px", 10, function(val)
+    Settings.SilentAim.FOV = val
+end)
+
+CreateToggle(AimbotPage, "Show FOV", Settings.SilentAim.ShowFOV, function(state)
+    Settings.SilentAim.ShowFOV = state
+end)
+
+CreateToggle(AimbotPage, "Bullet Tracers", Settings.SilentAim.Tracers, function(state)
+    Settings.SilentAim.Tracers = state
+end)
+
+CreateSlider(AimbotPage, "Hit Chance", 10, 100, Settings.SilentAim.HitChance, "%", 5, function(val)
+    Settings.SilentAim.HitChance = val
+end)
+
+CreateToggle(AimbotPage, "Bullet Prediction", Settings.SilentAim.UsePrediction, function(state)
+    Settings.SilentAim.UsePrediction = state
+end)
+
+CreateSlider(AimbotPage, "Prediction Amount", 0.05, 0.3, Settings.SilentAim.Prediction, "s", 0.005, function(val)
+    Settings.SilentAim.Prediction = val
+end)
+
+CreateToggle(AimbotPage, "Wall Check", Settings.SilentAim.WallCheck, function(state)
+    Settings.SilentAim.WallCheck = state
+end)
+
+CreateToggle(AimbotPage, "Sticky Target (Close Combat Fix)", Settings.SilentAim.StickyTarget, function(state)
+    Settings.SilentAim.StickyTarget = state
+end)
+
+CreateSection(AimbotPage, "SPREAD MODIFIER (NO SPREAD)")
+
+CreateToggle(AimbotPage, "No Spread", Settings.NoSpread.Enabled, function(state)
+    Settings.NoSpread.Enabled = state
+end)
+
+CreateSlider(AimbotPage, "Spread Amount", 0, 100, Settings.NoSpread.Amount, "%", 5, function(val)
+    Settings.NoSpread.Amount = val
+end)
+
+CreateSection(AimbotPage, "RAPID FIRE")
+
+CreateToggle(AimbotPage, "Rapid Fire", Settings.RapidFire.Enabled, function(state)
+    Settings.RapidFire.Enabled = state
+end)
+
+CreateSlider(AimbotPage, "Fire Rate Delay", 0.03, 0.5, Settings.RapidFire.Rate, "s", 0.01, function(val)
+    Settings.RapidFire.Rate = val
+end)
+
+-- Populate ESP Page Controls
+CreateSection(ESPPage, "ESP VISUALS")
 
 CreateToggle(ESPPage, "Master ESP", false, function(state)
     Settings.ESP.Enabled = state
@@ -759,3 +1615,272 @@ end)
 CreateToggle(ESPPage, "Name ESP", true, function(state)
     Settings.ESP.Names = state
 end)
+
+-- Populate WHITELIST Page Controls (НЕ ТРОНУТО КАК ПРОСИЛИ)
+CreateSection(WhitelistPage, "GLOBAL FILTERS")
+
+CreateToggle(WhitelistPage, "Whitelist Friends", Settings.Whitelist.Friends, function(state)
+    Settings.Whitelist.Friends = state
+end)
+
+CreateToggle(WhitelistPage, "Whitelist Team", Settings.Whitelist.Team, function(state)
+    Settings.Whitelist.Team = state
+end)
+
+CreateSection(WhitelistPage, "ADD PLAYER TO WHITELIST")
+
+local serverPickerFrame = Instance.new("Frame", WhitelistPage)
+serverPickerFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+serverPickerFrame.Size = UDim2.new(1, 0, 0, 34)
+Instance.new("UICorner", serverPickerFrame).CornerRadius = UDim.new(0, 8)
+local spStroke = Instance.new("UIStroke", serverPickerFrame)
+spStroke.Color = Color3.fromRGB(90, 40, 160)
+spStroke.Thickness = 1.2
+
+local selectedPlayerName = ""
+local serverPlayers = {}
+
+local function RefreshServerPlayers()
+    serverPlayers = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(serverPlayers, p.Name)
+        end
+    end
+    if #serverPlayers == 0 then
+        table.insert(serverPlayers, "None in server")
+        selectedPlayerName = ""
+    else
+        if not table.find(serverPlayers, selectedPlayerName) then
+            selectedPlayerName = serverPlayers[1]
+        end
+    end
+end
+
+RefreshServerPlayers()
+
+local selectBtn = Instance.new("TextButton", serverPickerFrame)
+selectBtn.BackgroundTransparency = 1
+selectBtn.Position = UDim2.new(0, 10, 0, 0)
+selectBtn.Size = UDim2.new(1, -70, 1, 0)
+selectBtn.Font = Enum.Font.GothamSemibold
+selectBtn.Text = "Pick: " .. (selectedPlayerName ~= "" and selectedPlayerName or "None")
+selectBtn.TextColor3 = Color3.fromRGB(210, 190, 255)
+selectBtn.TextSize = 11
+selectBtn.TextXAlignment = Enum.TextXAlignment.Left
+
+local curIdx = 1
+selectBtn.MouseButton1Click:Connect(function()
+    RefreshServerPlayers()
+    if #serverPlayers > 0 and serverPlayers[1] ~= "None in server" then
+        curIdx = curIdx + 1
+        if curIdx > #serverPlayers then curIdx = 1 end
+        selectedPlayerName = serverPlayers[curIdx]
+        selectBtn.Text = "Pick: " .. selectedPlayerName
+    else
+        selectBtn.Text = "Pick: None in server"
+        selectedPlayerName = ""
+    end
+end)
+
+local addPickerBtn = Instance.new("TextButton", serverPickerFrame)
+addPickerBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+addPickerBtn.Position = UDim2.new(1, -56, 0.5, -12)
+addPickerBtn.Size = UDim2.new(0, 48, 0, 24)
+addPickerBtn.Font = Enum.Font.GothamBold
+addPickerBtn.Text = "+ ADD"
+addPickerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+addPickerBtn.TextSize = 10
+Instance.new("UICorner", addPickerBtn).CornerRadius = UDim.new(0, 6)
+
+local manualInputFrame = Instance.new("Frame", WhitelistPage)
+manualInputFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+manualInputFrame.Size = UDim2.new(1, 0, 0, 34)
+Instance.new("UICorner", manualInputFrame).CornerRadius = UDim.new(0, 8)
+local miStroke = Instance.new("UIStroke", manualInputFrame)
+miStroke.Color = Color3.fromRGB(90, 40, 160)
+miStroke.Thickness = 1.2
+
+local manualBox = Instance.new("TextBox", manualInputFrame)
+manualBox.BackgroundTransparency = 1
+manualBox.Position = UDim2.new(0, 10, 0, 0)
+manualBox.Size = UDim2.new(1, -70, 1, 0)
+manualBox.Font = Enum.Font.Gotham
+manualBox.PlaceholderText = "Type player name..."
+manualBox.PlaceholderColor3 = Color3.fromRGB(120, 100, 140)
+manualBox.Text = ""
+manualBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+manualBox.TextSize = 11
+manualBox.TextXAlignment = Enum.TextXAlignment.Left
+
+local addManualBtn = Instance.new("TextButton", manualInputFrame)
+addManualBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+addManualBtn.Position = UDim2.new(1, -56, 0.5, -12)
+addManualBtn.Size = UDim2.new(0, 48, 0, 24)
+addManualBtn.Font = Enum.Font.GothamBold
+addManualBtn.Text = "+ ADD"
+addManualBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+addManualBtn.TextSize = 10
+Instance.new("UICorner", addManualBtn).CornerRadius = UDim.new(0, 6)
+
+CreateSection(WhitelistPage, "WHITELISTED PLAYERS")
+
+local listContainer = Instance.new("Frame", WhitelistPage)
+listContainer.BackgroundTransparency = 1
+listContainer.Size = UDim2.new(1, 0, 0, 0)
+listContainer.AutomaticSize = Enum.AutomaticSize.Y
+
+local listLayout = Instance.new("UIListLayout", listContainer)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 4)
+
+local function UpdateWhitelistUI()
+    for _, child in ipairs(listContainer:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+
+    local count = 0
+    for name, _ in pairs(Settings.Whitelist.Players) do
+        count = count + 1
+        local itemFrame = Instance.new("Frame", listContainer)
+        itemFrame.BackgroundColor3 = Color3.fromRGB(24, 18, 36)
+        itemFrame.Size = UDim2.new(1, 0, 0, 28)
+        Instance.new("UICorner", itemFrame).CornerRadius = UDim.new(0, 6)
+        local itemStroke = Instance.new("UIStroke", itemFrame)
+        itemStroke.Color = Color3.fromRGB(70, 35, 120)
+        itemStroke.Thickness = 1
+
+        local nameLabel = Instance.new("TextLabel", itemFrame)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Position = UDim2.new(0, 10, 0, 0)
+        nameLabel.Size = UDim2.new(1, -40, 1, 0)
+        nameLabel.Font = Enum.Font.GothamSemibold
+        nameLabel.Text = "🛡️ " .. tostring(name)
+        nameLabel.TextColor3 = Color3.fromRGB(220, 200, 255)
+        nameLabel.TextSize = 11
+        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+        local delBtn = Instance.new("TextButton", itemFrame)
+        delBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 60)
+        delBtn.Position = UDim2.new(1, -26, 0.5, -9)
+        delBtn.Size = UDim2.new(0, 18, 0, 18)
+        delBtn.Font = Enum.Font.GothamBold
+        delBtn.Text = "✕"
+        delBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        delBtn.TextSize = 10
+        Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 4)
+
+        delBtn.MouseButton1Click:Connect(function()
+            Settings.Whitelist.Players[name] = nil
+            Settings.Whitelist.Players[string.lower(name)] = nil
+            UpdateWhitelistUI()
+        end)
+    end
+
+    if count == 0 then
+        local emptyLbl = Instance.new("TextLabel", listContainer)
+        emptyLbl.BackgroundTransparency = 1
+        emptyLbl.Size = UDim2.new(1, 0, 0, 24)
+        emptyLbl.Font = Enum.Font.Gotham
+        emptyLbl.Text = "No custom players whitelisted"
+        emptyLbl.TextColor3 = Color3.fromRGB(120, 110, 140)
+        emptyLbl.TextSize = 11
+    end
+end
+
+addPickerBtn.MouseButton1Click:Connect(function()
+    if selectedPlayerName and selectedPlayerName ~= "" and selectedPlayerName ~= "None in server" then
+        Settings.Whitelist.Players[selectedPlayerName] = true
+        Settings.Whitelist.Players[string.lower(selectedPlayerName)] = true
+        UpdateWhitelistUI()
+    end
+end)
+
+addManualBtn.MouseButton1Click:Connect(function()
+    local text = manualBox.Text:gsub("%s+", "")
+    if text ~= "" then
+        Settings.Whitelist.Players[text] = true
+        Settings.Whitelist.Players[string.lower(text)] = true
+        manualBox.Text = ""
+        UpdateWhitelistUI()
+    end
+end)
+
+local clearAllBtn = Instance.new("TextButton", WhitelistPage)
+clearAllBtn.BackgroundColor3 = Color3.fromRGB(36, 18, 28)
+clearAllBtn.Size = UDim2.new(1, 0, 0, 28)
+clearAllBtn.Font = Enum.Font.GothamSemibold
+clearAllBtn.Text = "🗑️ Clear Whitelist"
+clearAllBtn.TextColor3 = Color3.fromRGB(255, 120, 130)
+clearAllBtn.TextSize = 11
+Instance.new("UICorner", clearAllBtn).CornerRadius = UDim.new(0, 6)
+local caStroke = Instance.new("UIStroke", clearAllBtn)
+caStroke.Color = Color3.fromRGB(120, 30, 40)
+caStroke.Thickness = 1
+
+clearAllBtn.MouseButton1Click:Connect(function()
+    Settings.Whitelist.Players = {}
+    UpdateWhitelistUI()
+end)
+
+UpdateWhitelistUI()
+
+-- Populate MISC Page Controls
+CreateSection(MiscPage, "FLY (FLIGHT SYSTEM)")
+
+flyToggleObj = CreateToggle(MiscPage, "Fly Master", Settings.Misc.Fly, function(state)
+    UpdateFlyState(state, true)
+end)
+
+CreateSlider(MiscPage, "Fly Speed", 10, 200, Settings.Misc.FlySpeed, " studs/s", 5, function(val)
+    Settings.Misc.FlySpeed = val
+end)
+
+CreateSection(MiscPage, "VCLIP (VERTICAL TELEPORT)")
+
+CreateSlider(MiscPage, "VClip Distance", 1, 50, Settings.Misc.VClipDistance, " st", 1, function(val)
+    Settings.Misc.VClipDistance = val
+end)
+
+CreateButton(MiscPage, "▲ VClip Up (Clip Above / Roof)", function()
+    DoVClip(Settings.Misc.VClipDistance)
+end)
+
+CreateButton(MiscPage, "▼ VClip Down (Clip Below / Floor)", function()
+    DoVClip(-Settings.Misc.VClipDistance)
+end)
+
+CreateSection(MiscPage, "HOTKEYS (PC)")
+local helpFrame = Instance.new("Frame", MiscPage)
+helpFloatFrame = helpFrame
+helpFrame.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+helpFrame.Size = UDim2.new(1, 0, 0, 84)
+Instance.new("UICorner", helpFrame).CornerRadius = UDim.new(0, 8)
+local hfStroke = Instance.new("UIStroke", helpFrame)
+hfStroke.Color = Color3.fromRGB(90, 40, 160)
+hfStroke.Thickness = 1.2
+
+local hfLayout = Instance.new("UIListLayout", helpFrame)
+hfLayout.SortOrder = Enum.SortOrder.LayoutOrder
+hfLayout.Padding = UDim.new(0, 2)
+local hfPad = Instance.new("UIPadding", helpFrame)
+hfPad.PaddingLeft = UDim.new(0, 10)
+hfPad.PaddingTop = UDim.new(0, 6)
+
+local function AddKeyHelp(txt)
+    local lbl = Instance.new("TextLabel", helpFrame)
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, -20, 0, 16)
+    lbl.Font = Enum.Font.GothamSemibold
+    lbl.Text = txt
+    lbl.TextColor3 = Color3.fromRGB(200, 180, 230)
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+AddKeyHelp("• [X] - Toggle Fly On / Off")
+AddKeyHelp("• [B] - VClip Up (through ceiling)")
+AddKeyHelp("• [V] - VClip Down (through floor)")
+AddKeyHelp("• [Q] - Toggle Regular Aimbot (CamLock)")
