@@ -1,4 +1,6 @@
--- COCITESCRIPT | Da Hood & Flame Hood Edition (Mobile + Silent Aim + Bullet TP + Snap Camlock)
+-- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup & Anti-Freeze)
+-- FIXED: Silent Aim 100% только в locked + BulletTP удалён + меню чуть прокачано
+
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -27,9 +29,11 @@ pcall(function()
         local prevPlayerGui = LocalPlayer.PlayerGui:FindFirstChild("CociteCyberGui")
         if prevPlayerGui then prevPlayerGui:Destroy() end
     end
-    for _, name in ipairs({"CociteCamProxy", "CociteTPGhost"}) do
-        local obj = workspace:FindFirstChild(name)
-        if obj then obj:Destroy() end
+    if workspace:FindFirstChild("CociteCamProxy") then
+        workspace.CociteCamProxy:Destroy()
+    end
+    if workspace:FindFirstChild("CociteTPGhost") then
+        workspace.CociteTPGhost:Destroy()
     end
     local char = LocalPlayer and LocalPlayer.Character
     if char and char:FindFirstChildOfClass("Humanoid") and Camera then
@@ -46,9 +50,11 @@ local Settings = {
     Aimbot = {
         Enabled = true,
         LockedTarget = nil,
-        AimPart = "HumanoidRootPart",
+        AimPart = "Head",
         FOV = 220,
         ShowFOV = true,
+        Smooth = true,
+        Smoothness = 0.35,
         Prediction = 0.135,
         UsePrediction = true,
     },
@@ -57,21 +63,33 @@ local Settings = {
         AimPart = "HumanoidRootPart",
         FOV = 200,
         ShowFOV = true,
-        AutoLock = true,
         Tracers = false,
-        HitChance = 100,
+        HitChance = 100,          -- жёстко 100%
         Prediction = 0.135,
         UsePrediction = true,
         WallCheck = false,
+        StickyTarget = true,
     },
-    NoSpread = { Enabled = true, Amount = 0 },
-    RapidFire = { Enabled = false, Rate = 0.08 },
-    Whitelist = { Players = {}, Friends = true, Team = false },
+    NoSpread = {
+        Enabled = true,
+        Amount = 0,
+    },
+    RapidFire = {
+        Enabled = false,
+        Rate = 0.08,
+    },
+    Whitelist = {
+        Players = {},
+        Friends = true,
+        Team = false,
+    },
     ESP = {
         Enabled = false,
         Boxes = true,
         Chams = true,
         Names = true,
+        ActiveDrawings = {},
+        ActiveHighlights = {}
     },
     Misc = {
         Fly = false,
@@ -79,8 +97,6 @@ local Settings = {
         VClipDistance = 10,
     }
 }
-
-local IS_TOUCH = UserInputService.TouchEnabled
 
 local friendCache = {}
 local function IsFriendCached(userId)
@@ -100,9 +116,9 @@ end
 
 local function IsWhitelisted(player)
     if not player then return false end
-    if Settings.Whitelist.Players[player.Name]
-       or Settings.Whitelist.Players[player.UserId]
-       or Settings.Whitelist.Players[tostring(player.UserId)]
+    if Settings.Whitelist.Players[player.Name] 
+       or Settings.Whitelist.Players[player.UserId] 
+       or Settings.Whitelist.Players[tostring(player.UserId)] 
        or Settings.Whitelist.Players[string.lower(player.Name)] then
         return true
     end
@@ -121,7 +137,9 @@ local function IsValidTarget(player)
     local char = player.Character
     local humanoid = char:FindFirstChild("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
+    
     if not humanoid or humanoid.Health <= 0 or not hrp then return false end
+    
     local bodyEffects = char:FindFirstChild("BodyEffects")
     if bodyEffects then
         local ko = bodyEffects:FindFirstChild("K.O") or bodyEffects:FindFirstChild("KO")
@@ -129,6 +147,7 @@ local function IsValidTarget(player)
             return false
         end
     end
+    
     return true
 end
 
@@ -166,6 +185,7 @@ local function GetClosestPlayerForAim()
     local closest = nil
     local shortestDist = Settings.Aimbot.FOV or 220
     local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+
     for _, player in ipairs(Players:GetPlayers()) do
         if IsValidTarget(player) then
             local part = GetCharacterAimPart(player.Character, Settings.Aimbot.AimPart)
@@ -184,7 +204,6 @@ local function GetClosestPlayerForAim()
     return closest
 end
 
--- [[ GUI ROOT ]]
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CociteCyberGui"
 pcall(function()
@@ -196,20 +215,24 @@ end
 ScreenGui.ResetOnSpawn = false
 
 local AuthFrame = Instance.new("Frame", ScreenGui)
-AuthFrame.BackgroundColor3 = Color3.fromRGB(10, 8, 16)
+AuthFrame.BackgroundColor3 = Color3.fromRGB(8, 6, 14)
 AuthFrame.Position = UDim2.new(0.5, -170, 0.5, -130)
 AuthFrame.Size = UDim2.new(0, 340, 0, 260)
 AuthFrame.Active = true
 AuthFrame.Draggable = true
-Instance.new("UICorner", AuthFrame).CornerRadius = UDim.new(0, 16)
+AuthFrame.BackgroundTransparency = 1
+Instance.new("UICorner", AuthFrame).CornerRadius = UDim.new(0, 18)
+
 local AuthStroke = Instance.new("UIStroke", AuthFrame)
-AuthStroke.Color = Color3.fromRGB(160, 50, 255)
-AuthStroke.Thickness = 2
+AuthStroke.Color = Color3.fromRGB(170, 60, 255)
+AuthStroke.Thickness = 2.5
+AuthStroke.Transparency = 1
 
 local AuthHeader = Instance.new("Frame", AuthFrame)
-AuthHeader.BackgroundColor3 = Color3.fromRGB(22, 16, 36)
+AuthHeader.BackgroundColor3 = Color3.fromRGB(18, 12, 32)
 AuthHeader.Size = UDim2.new(1, 0, 0, 48)
-Instance.new("UICorner", AuthHeader).CornerRadius = UDim.new(0, 16)
+AuthHeader.BackgroundTransparency = 1
+Instance.new("UICorner", AuthHeader).CornerRadius = UDim.new(0, 18)
 
 local AuthTitle = Instance.new("TextLabel", AuthHeader)
 AuthTitle.BackgroundTransparency = 1
@@ -217,8 +240,9 @@ AuthTitle.Position = UDim2.new(0, 16, 0, 0)
 AuthTitle.Size = UDim2.new(1, -32, 1, 0)
 AuthTitle.Font = Enum.Font.GothamBold
 AuthTitle.Text = "🛡️ COCITESCRIPT | AUTH"
-AuthTitle.TextColor3 = Color3.fromRGB(220, 180, 255)
+AuthTitle.TextColor3 = Color3.fromRGB(230, 190, 255)
 AuthTitle.TextSize = 13
+AuthTitle.TextTransparency = 1
 AuthTitle.TextXAlignment = Enum.TextXAlignment.Left
 
 local WelcomeLabel = Instance.new("TextLabel", AuthFrame)
@@ -229,13 +253,15 @@ WelcomeLabel.Font = Enum.Font.GothamBold
 WelcomeLabel.Text = "Привет, " .. LocalPlayer.Name .. "!"
 WelcomeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 WelcomeLabel.TextSize = 14
+WelcomeLabel.TextTransparency = 1
 WelcomeLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local InputContainer = Instance.new("Frame", AuthFrame)
-InputContainer.BackgroundColor3 = Color3.fromRGB(16, 12, 26)
+InputContainer.BackgroundColor3 = Color3.fromRGB(14, 10, 24)
 InputContainer.Position = UDim2.new(0, 20, 0, 90)
 InputContainer.Size = UDim2.new(0, 300, 0, 42)
-Instance.new("UICorner", InputContainer).CornerRadius = UDim.new(0, 10)
+InputContainer.BackgroundTransparency = 1
+Instance.new("UICorner", InputContainer).CornerRadius = UDim.new(0, 12)
 
 local TextBox = Instance.new("TextBox", InputContainer)
 TextBox.BackgroundTransparency = 1
@@ -247,6 +273,7 @@ TextBox.Text = ""
 TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 TextBox.PlaceholderColor3 = Color3.fromRGB(100, 90, 120)
 TextBox.TextSize = 12
+TextBox.TextTransparency = 1
 
 local StatusLabel = Instance.new("TextLabel", AuthFrame)
 StatusLabel.BackgroundTransparency = 1
@@ -256,27 +283,44 @@ StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.Text = "Статус: Ожидание ввода..."
 StatusLabel.TextColor3 = Color3.fromRGB(130, 120, 160)
 StatusLabel.TextSize = 11
+StatusLabel.TextTransparency = 1
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local PasteBtn = Instance.new("TextButton", AuthFrame)
-PasteBtn.BackgroundColor3 = Color3.fromRGB(28, 20, 44)
+PasteBtn.BackgroundColor3 = Color3.fromRGB(26, 18, 42)
 PasteBtn.Position = UDim2.new(0, 20, 0, 172)
 PasteBtn.Size = UDim2.new(0, 95, 0, 38)
 PasteBtn.Font = Enum.Font.GothamBold
 PasteBtn.Text = "📋 ВСТАВИТЬ"
-PasteBtn.TextColor3 = Color3.fromRGB(180, 160, 220)
+PasteBtn.TextColor3 = Color3.fromRGB(190, 170, 230)
 PasteBtn.TextSize = 11
-Instance.new("UICorner", PasteBtn).CornerRadius = UDim.new(0, 10)
+PasteBtn.BackgroundTransparency = 1
+PasteBtn.TextTransparency = 1
+Instance.new("UICorner", PasteBtn).CornerRadius = UDim.new(0, 12)
 
 local LoginBtn = Instance.new("TextButton", AuthFrame)
-LoginBtn.BackgroundColor3 = Color3.fromRGB(130, 35, 235)
+LoginBtn.BackgroundColor3 = Color3.fromRGB(140, 40, 240)
 LoginBtn.Position = UDim2.new(0, 123, 0, 172)
 LoginBtn.Size = UDim2.new(0, 197, 0, 38)
 LoginBtn.Font = Enum.Font.GothamBold
 LoginBtn.Text = "АВТОРИЗОВАТЬСЯ ➔"
 LoginBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 LoginBtn.TextSize = 11
-Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 10)
+LoginBtn.BackgroundTransparency = 1
+LoginBtn.TextTransparency = 1
+Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 12)
+
+local tweenInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+TweenService:Create(AuthFrame, tweenInfo, {BackgroundTransparency = 0}):Play()
+TweenService:Create(AuthStroke, tweenInfo, {Transparency = 0}):Play()
+TweenService:Create(AuthHeader, tweenInfo, {BackgroundTransparency = 0}):Play()
+TweenService:Create(AuthTitle, tweenInfo, {TextTransparency = 0}):Play()
+TweenService:Create(WelcomeLabel, tweenInfo, {TextTransparency = 0}):Play()
+TweenService:Create(InputContainer, tweenInfo, {BackgroundTransparency = 0}):Play()
+TweenService:Create(TextBox, tweenInfo, {TextTransparency = 0}):Play()
+TweenService:Create(StatusLabel, tweenInfo, {TextTransparency = 0}):Play()
+TweenService:Create(PasteBtn, tweenInfo, {BackgroundTransparency = 0, TextTransparency = 0}):Play()
+TweenService:Create(LoginBtn, tweenInfo, {BackgroundTransparency = 0, TextTransparency = 0}):Play()
 
 PasteBtn.MouseButton1Click:Connect(function()
     if getclipboard then
@@ -288,12 +332,11 @@ PasteBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ TOGGLE + MAIN FRAME ]]
 local ToggleButton = Instance.new("ImageButton", ScreenGui)
 ToggleButton.Name = "CociteToggleBtn"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(16, 12, 26)
 ToggleButton.Position = UDim2.new(0, 20, 0.3, 0)
-ToggleButton.Size = IS_TOUCH and UDim2.new(0, 64, 0, 64) or UDim2.new(0, 52, 0, 52)
+ToggleButton.Size = UDim2.new(0, 52, 0, 52)
 ToggleButton.Visible = false
 ToggleButton.Active = true
 ToggleButton.Draggable = true
@@ -302,30 +345,24 @@ Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
 
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Name = "MainFrame"
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 8, 18)
 MainFrame.Position = UDim2.new(0.5, -215, 0.5, -170)
 MainFrame.Size = UDim2.new(0, 440, 0, 350)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
-local MainStroke = Instance.new("UIStroke", MainFrame)
-MainStroke.Color = Color3.fromRGB(140, 40, 255)
-MainStroke.Thickness = 2.5
+MainFrame.BackgroundTransparency = 1
 
--- компакт под маленькие экраны телефона
-do
-    local vp = (workspace.CurrentCamera or Camera).ViewportSize
-    if IS_TOUCH and vp.Y < 480 then
-        MainFrame.Size = UDim2.new(0, 380, 0, 300)
-        MainFrame.Position = UDim2.new(0.5, -190, 0.5, -150)
-    end
-end
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Color = Color3.fromRGB(150, 50, 255)
+MainStroke.Thickness = 2.5
+MainStroke.Transparency = 1
 
 local Header = Instance.new("Frame", MainFrame)
-Header.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+Header.BackgroundColor3 = Color3.fromRGB(18, 13, 30)
 Header.Size = UDim2.new(1, 0, 0, 42)
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 14)
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 16)
 
 local Title = Instance.new("TextLabel", Header)
 Title.BackgroundTransparency = 1
@@ -333,7 +370,7 @@ Title.Position = UDim2.new(0, 16, 0, 0)
 Title.Size = UDim2.new(1, -50, 1, 0)
 Title.Font = Enum.Font.GothamBold
 Title.Text = "⚡ COCITESCRIPT | DA HOOD HUB ⚡"
-Title.TextColor3 = Color3.fromRGB(210, 160, 255)
+Title.TextColor3 = Color3.fromRGB(220, 170, 255)
 Title.TextSize = 13
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -356,10 +393,10 @@ ToggleButton.MouseButton1Click:Connect(function()
 end)
 
 local TabBar = Instance.new("Frame", MainFrame)
-TabBar.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
+TabBar.BackgroundColor3 = Color3.fromRGB(16, 12, 26)
 TabBar.Position = UDim2.new(0, 12, 0, 48)
 TabBar.Size = UDim2.new(1, -24, 0, 34)
-Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 10)
 
 local TabListLayout = Instance.new("UIListLayout", TabBar)
 TabListLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -377,20 +414,20 @@ local TabButtons = {}
 
 local function CreateTab(tabName)
     local tabBtn = Instance.new("TextButton", TabBar)
-    tabBtn.BackgroundColor3 = Color3.fromRGB(26, 20, 40)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(24, 18, 38)
     tabBtn.Size = UDim2.new(0, 88, 0, 26)
     tabBtn.Font = Enum.Font.GothamBold
     tabBtn.Text = tabName
     tabBtn.TextColor3 = Color3.fromRGB(150, 140, 170)
     tabBtn.TextSize = 11
-    Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0, 8)
 
     local pageFrame = Instance.new("ScrollingFrame", ContentContainer)
     pageFrame.BackgroundTransparency = 1
     pageFrame.BorderSizePixel = 0
     pageFrame.Size = UDim2.new(1, 0, 1, 0)
     pageFrame.ScrollBarThickness = 3
-    pageFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 40, 255)
+    pageFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 50, 255)
     pageFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     pageFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
     pageFrame.Visible = false
@@ -407,11 +444,11 @@ local function CreateTab(tabName)
     tabBtn.MouseButton1Click:Connect(function()
         for name, page in pairs(Tabs) do
             page.Visible = false
-            TabButtons[name].BackgroundColor3 = Color3.fromRGB(26, 20, 40)
+            TabButtons[name].BackgroundColor3 = Color3.fromRGB(24, 18, 38)
             TabButtons[name].TextColor3 = Color3.fromRGB(150, 140, 170)
         end
         pageFrame.Visible = true
-        tabBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+        tabBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 210)
         tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     end)
 
@@ -424,38 +461,40 @@ local function CreateSection(parent, text)
     local sec = Instance.new("Frame", parent)
     sec.BackgroundTransparency = 1
     sec.Size = UDim2.new(1, 0, 0, 22)
+
     local lbl = Instance.new("TextLabel", sec)
     lbl.BackgroundTransparency = 1
     lbl.Size = UDim2.new(1, 0, 1, 0)
     lbl.Font = Enum.Font.GothamBold
     lbl.Text = "─── " .. string.upper(text) .. " ───"
-    lbl.TextColor3 = Color3.fromRGB(170, 120, 255)
+    lbl.TextColor3 = Color3.fromRGB(180, 130, 255)
     lbl.TextSize = 10
     return sec
 end
 
 local function CreateToggle(parent, text, defaultState, callback)
     local btn = Instance.new("TextButton", parent)
-    btn.BackgroundColor3 = defaultState and Color3.fromRGB(110, 25, 200) or Color3.fromRGB(20, 15, 32)
+    btn.BackgroundColor3 = defaultState and Color3.fromRGB(120, 30, 210) or Color3.fromRGB(18, 14, 30)
     btn.Size = UDim2.new(1, 0, 0, 34)
     btn.Font = Enum.Font.GothamSemibold
     btn.Text = text .. (defaultState and ": ON" or ": OFF")
     btn.TextColor3 = defaultState and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 180, 210)
     btn.TextSize = 11
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
     local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = Color3.fromRGB(90, 40, 160)
-    stroke.Thickness = 1.2
+    stroke.Color = Color3.fromRGB(100, 45, 170)
+    stroke.Thickness = 1.3
 
     local active = defaultState
     btn.MouseButton1Click:Connect(function()
         active = not active
         if active then
-            btn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+            btn.BackgroundColor3 = Color3.fromRGB(120, 30, 210)
             btn.TextColor3 = Color3.fromRGB(255, 255, 255)
             btn.Text = text .. ": ON"
         else
-            btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+            btn.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
             btn.TextColor3 = Color3.fromRGB(190, 180, 210)
             btn.Text = text .. ": OFF"
         end
@@ -466,7 +505,7 @@ local function CreateToggle(parent, text, defaultState, callback)
         Button = btn,
         Set = function(self, val)
             active = val
-            btn.BackgroundColor3 = active and Color3.fromRGB(110, 25, 200) or Color3.fromRGB(20, 15, 32)
+            btn.BackgroundColor3 = active and Color3.fromRGB(120, 30, 210) or Color3.fromRGB(18, 14, 30)
             btn.TextColor3 = active and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(190, 180, 210)
             btn.Text = text .. (active and ": ON" or ": OFF")
             callback(active)
@@ -476,41 +515,47 @@ end
 
 local function CreateButton(parent, label, callback)
     local btn = Instance.new("TextButton", parent)
-    btn.BackgroundColor3 = Color3.fromRGB(22, 16, 36)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 15, 34)
     btn.Size = UDim2.new(1, 0, 0, 34)
     btn.Font = Enum.Font.GothamBold
     btn.Text = label
-    btn.TextColor3 = Color3.fromRGB(220, 190, 255)
+    btn.TextColor3 = Color3.fromRGB(230, 200, 255)
     btn.TextSize = 11
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
     local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = Color3.fromRGB(110, 40, 190)
-    stroke.Thickness = 1.2
+    stroke.Color = Color3.fromRGB(120, 45, 200)
+    stroke.Thickness = 1.3
+
     btn.MouseButton1Click:Connect(function()
         callback()
     end)
+
     return btn
 end
 
 local function CreateCycle(parent, label, options, defaultIndex, callback)
     local idx = defaultIndex or 1
     local btn = Instance.new("TextButton", parent)
-    btn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
     btn.Size = UDim2.new(1, 0, 0, 34)
     btn.Font = Enum.Font.GothamSemibold
     btn.Text = label .. ": [" .. tostring(options[idx]) .. "]"
     btn.TextColor3 = Color3.fromRGB(210, 190, 255)
     btn.TextSize = 11
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
     local stroke = Instance.new("UIStroke", btn)
-    stroke.Color = Color3.fromRGB(90, 40, 160)
-    stroke.Thickness = 1.2
+    stroke.Color = Color3.fromRGB(100, 45, 170)
+    stroke.Thickness = 1.3
+
     btn.MouseButton1Click:Connect(function()
         idx = idx + 1
         if idx > #options then idx = 1 end
         btn.Text = label .. ": [" .. tostring(options[idx]) .. "]"
         callback(options[idx])
     end)
+
     return {
         Button = btn,
         Get = function() return options[idx] end,
@@ -533,12 +578,12 @@ local function CreateSlider(parent, label, minVal, maxVal, defaultVal, suffix, s
     local stp = step or 1
 
     local frame = Instance.new("Frame", parent)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+    frame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
     frame.Size = UDim2.new(1, 0, 0, 46)
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
     local stroke = Instance.new("UIStroke", frame)
-    stroke.Color = Color3.fromRGB(90, 40, 160)
-    stroke.Thickness = 1.2
+    stroke.Color = Color3.fromRGB(100, 45, 170)
+    stroke.Thickness = 1.3
 
     local titleLbl = Instance.new("TextLabel", frame)
     titleLbl.BackgroundTransparency = 1
@@ -556,32 +601,32 @@ local function CreateSlider(parent, label, minVal, maxVal, defaultVal, suffix, s
     valLbl.Size = UDim2.new(0.4, -10, 0, 18)
     valLbl.Font = Enum.Font.GothamBold
     valLbl.Text = tostring(currentVal) .. suf
-    valLbl.TextColor3 = Color3.fromRGB(180, 120, 255)
+    valLbl.TextColor3 = Color3.fromRGB(190, 130, 255)
     valLbl.TextSize = 11
     valLbl.TextXAlignment = Enum.TextXAlignment.Right
 
     local minusBtn = Instance.new("TextButton", frame)
-    minusBtn.BackgroundColor3 = Color3.fromRGB(32, 24, 48)
+    minusBtn.BackgroundColor3 = Color3.fromRGB(30, 22, 46)
     minusBtn.Position = UDim2.new(0, 10, 0, 24)
     minusBtn.Size = UDim2.new(0, 28, 0, 16)
     minusBtn.Font = Enum.Font.GothamBold
     minusBtn.Text = "-"
     minusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     minusBtn.TextSize = 12
-    Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 4)
+    Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 5)
 
     local plusBtn = Instance.new("TextButton", frame)
-    plusBtn.BackgroundColor3 = Color3.fromRGB(32, 24, 48)
+    plusBtn.BackgroundColor3 = Color3.fromRGB(30, 22, 46)
     plusBtn.Position = UDim2.new(1, -38, 0, 24)
     plusBtn.Size = UDim2.new(0, 28, 0, 16)
     plusBtn.Font = Enum.Font.GothamBold
     plusBtn.Text = "+"
     plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     plusBtn.TextSize = 12
-    Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 4)
+    Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 5)
 
     local barBg = Instance.new("TextButton", frame)
-    barBg.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
+    barBg.BackgroundColor3 = Color3.fromRGB(10, 8, 18)
     barBg.Position = UDim2.new(0, 44, 0, 28)
     barBg.Size = UDim2.new(1, -88, 0, 8)
     barBg.Text = ""
@@ -589,7 +634,7 @@ local function CreateSlider(parent, label, minVal, maxVal, defaultVal, suffix, s
     Instance.new("UICorner", barBg).CornerRadius = UDim.new(1, 0)
 
     local barFill = Instance.new("Frame", barBg)
-    barFill.BackgroundColor3 = Color3.fromRGB(140, 40, 255)
+    barFill.BackgroundColor3 = Color3.fromRGB(150, 50, 255)
     barFill.Size = UDim2.new(math.clamp((currentVal - minVal) / (maxVal - minVal), 0, 1), 0, 1, 0)
     Instance.new("UICorner", barFill).CornerRadius = UDim.new(1, 0)
 
@@ -605,10 +650,16 @@ local function CreateSlider(parent, label, minVal, maxVal, defaultVal, suffix, s
         callback(currentVal)
     end
 
-    minusBtn.MouseButton1Click:Connect(function() updateVal(currentVal - stp) end)
-    plusBtn.MouseButton1Click:Connect(function() updateVal(currentVal + stp) end)
+    minusBtn.MouseButton1Click:Connect(function()
+        updateVal(currentVal - stp)
+    end)
+
+    plusBtn.MouseButton1Click:Connect(function()
+        updateVal(currentVal + stp)
+    end)
+
     barBg.MouseButton1Click:Connect(function()
-        local mousePos = UserInputService:GetMouseLocation().X
+        local mousePos = game:GetService("UserInputService"):GetMouseLocation().X
         local absPos = barBg.AbsolutePosition.X
         local absSize = barBg.AbsoluteSize.X
         if absSize > 0 then
@@ -619,25 +670,27 @@ local function CreateSlider(parent, label, minVal, maxVal, defaultVal, suffix, s
 
     return {
         Frame = frame,
-        Set = function(self, val) updateVal(val) end
+        Set = function(self, val)
+            updateVal(val)
+        end
     }
 end
 
-local AimbotPage = CreateTab("AIM")
+local AimbotPage = CreateTab("AIMBOT")
 local ESPPage = CreateTab("ESP")
 local WhitelistPage = CreateTab("WHITELIST")
 local MiscPage = CreateTab("MISC")
 
-Tabs["AIM"].Visible = true
-TabButtons["AIM"].BackgroundColor3 = Color3.fromRGB(110, 25, 200)
-TabButtons["AIM"].TextColor3 = Color3.fromRGB(255, 255, 255)
+Tabs["AIMBOT"].Visible = true
+TabButtons["AIMBOT"].BackgroundColor3 = Color3.fromRGB(120, 30, 210)
+TabButtons["AIMBOT"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- [[ FLOAT BUTTONS ]]
 local AimActive = false
+local aimbotToggleObj = nil
 
 local AimFloatBtn = Instance.new("TextButton", ScreenGui)
 AimFloatBtn.Name = "CociteAimFloatBtn"
-AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+AimFloatBtn.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
 AimFloatBtn.Position = UDim2.new(0.82, 0, 0.36, 0)
 AimFloatBtn.Size = UDim2.new(0, 105, 0, 42)
 AimFloatBtn.Font = Enum.Font.GothamBold
@@ -647,31 +700,31 @@ AimFloatBtn.TextSize = 12
 AimFloatBtn.Visible = false
 AimFloatBtn.Active = true
 AimFloatBtn.Draggable = true
-Instance.new("UICorner", AimFloatBtn).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", AimFloatBtn).CornerRadius = UDim.new(0, 12)
 local aimFloatStroke = Instance.new("UIStroke", AimFloatBtn)
-aimFloatStroke.Color = Color3.fromRGB(120, 40, 200)
-aimFloatStroke.Thickness = 1.5
+aimFloatStroke.Color = Color3.fromRGB(130, 45, 210)
+aimFloatStroke.Thickness = 1.6
 
 local SilentFloatBtn = Instance.new("TextButton", ScreenGui)
 SilentFloatBtn.Name = "CociteSilentFloatBtn"
-SilentFloatBtn.BackgroundColor3 = Settings.SilentAim.Enabled and Color3.fromRGB(0, 130, 180) or Color3.fromRGB(16, 22, 32)
+SilentFloatBtn.BackgroundColor3 = Settings.SilentAim.Enabled and Color3.fromRGB(0, 140, 190) or Color3.fromRGB(14, 20, 30)
 SilentFloatBtn.Position = UDim2.new(0.82, 0, 0.44, 0)
 SilentFloatBtn.Size = UDim2.new(0, 105, 0, 42)
 SilentFloatBtn.Font = Enum.Font.GothamBold
-SilentFloatBtn.Text = Settings.SilentAim.Enabled and "🔮 BULLET TP: ON" or "🔮 BULLET TP: OFF"
+SilentFloatBtn.Text = Settings.SilentAim.Enabled and "🔮 SILENT: ON" or "🔮 SILENT: OFF"
 SilentFloatBtn.TextColor3 = Settings.SilentAim.Enabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 200, 230)
 SilentFloatBtn.TextSize = 12
 SilentFloatBtn.Visible = false
 SilentFloatBtn.Active = true
 SilentFloatBtn.Draggable = true
-Instance.new("UICorner", SilentFloatBtn).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", SilentFloatBtn).CornerRadius = UDim.new(0, 12)
 local silentFloatStroke = Instance.new("UIStroke", SilentFloatBtn)
-silentFloatStroke.Color = Settings.SilentAim.Enabled and Color3.fromRGB(0, 220, 255) or Color3.fromRGB(40, 90, 130)
-silentFloatStroke.Thickness = 1.5
+silentFloatStroke.Color = Settings.SilentAim.Enabled and Color3.fromRGB(0, 230, 255) or Color3.fromRGB(40, 90, 130)
+silentFloatStroke.Thickness = 1.6
 
 local FlyFloatBtn = Instance.new("TextButton", ScreenGui)
 FlyFloatBtn.Name = "CociteFlyFloatBtn"
-FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(24, 18, 22)
+FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(22, 16, 20)
 FlyFloatBtn.Position = UDim2.new(0.82, 0, 0.52, 0)
 FlyFloatBtn.Size = UDim2.new(0, 105, 0, 42)
 FlyFloatBtn.Font = Enum.Font.GothamBold
@@ -681,49 +734,15 @@ FlyFloatBtn.TextSize = 12
 FlyFloatBtn.Visible = false
 FlyFloatBtn.Active = true
 FlyFloatBtn.Draggable = true
-Instance.new("UICorner", FlyFloatBtn).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", FlyFloatBtn).CornerRadius = UDim.new(0, 12)
 local flyFloatStroke = Instance.new("UIStroke", FlyFloatBtn)
-flyFloatStroke.Color = Color3.fromRGB(160, 60, 40)
-flyFloatStroke.Thickness = 1.5
+flyFloatStroke.Color = Color3.fromRGB(170, 70, 45)
+flyFloatStroke.Thickness = 1.6
 
--- мобильные кнопки VCLIP (появляются на тач-устройствах после входа)
-local VUpBtn, VDownBtn = nil, nil
-if IS_TOUCH then
-    VUpBtn = Instance.new("TextButton", ScreenGui)
-    VUpBtn.Name = "CociteVUp"
-    VUpBtn.BackgroundColor3 = Color3.fromRGB(24, 18, 22)
-    VUpBtn.Position = UDim2.new(0.82, 0, 0.60, 0)
-    VUpBtn.Size = UDim2.new(0, 50, 0, 38)
-    VUpBtn.Font = Enum.Font.GothamBold
-    VUpBtn.Text = "▲"
-    VUpBtn.TextColor3 = Color3.fromRGB(240, 200, 160)
-    VUpBtn.TextSize = 14
-    VUpBtn.Visible = false
-    VUpBtn.Active = true
-    VUpBtn.Draggable = true
-    Instance.new("UICorner", VUpBtn).CornerRadius = UDim.new(0, 8)
-
-    VDownBtn = Instance.new("TextButton", ScreenGui)
-    VDownBtn.Name = "CociteVDown"
-    VDownBtn.BackgroundColor3 = Color3.fromRGB(24, 18, 22)
-    VDownBtn.Position = UDim2.new(0.82, 55, 0.60, 0)
-    VDownBtn.Size = UDim2.new(0, 50, 0, 38)
-    VDownBtn.Font = Enum.Font.GothamBold
-    VDownBtn.Text = "▼"
-    VDownBtn.TextColor3 = Color3.fromRGB(240, 200, 160)
-    VDownBtn.TextSize = 14
-    VDownBtn.Visible = false
-    VDownBtn.Active = true
-    VDownBtn.Draggable = true
-    Instance.new("UICorner", VDownBtn).CornerRadius = UDim.new(0, 8)
-end
-
--- [[ FLY ENGINE ]]
 local updatingFromFloat = false
-local flyUpdating = false
 local silentToggleObj = nil
-local flyToggleObj = nil
 local flyConnection = nil
+local flyToggleObj = nil
 local currentFlyCFrame = nil
 
 local function DoVClip(distance)
@@ -731,6 +750,7 @@ local function DoVClip(distance)
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or hum.Health <= 0 then return end
+
     hrp.CFrame = hrp.CFrame + Vector3.new(0, distance, 0)
     hrp.AssemblyLinearVelocity = Vector3.zero
     if currentFlyCFrame then
@@ -742,21 +762,19 @@ local function UpdateFlyState(state, fromUI)
     Settings.Misc.Fly = state
     if FlyFloatBtn then
         if state then
-            FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 30)
+            FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(210, 65, 35)
             FlyFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             FlyFloatBtn.Text = "🚀 FLY: ON"
-            flyFloatStroke.Color = Color3.fromRGB(255, 120, 60)
+            flyFloatStroke.Color = Color3.fromRGB(255, 130, 70)
         else
-            FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(24, 18, 22)
+            FlyFloatBtn.BackgroundColor3 = Color3.fromRGB(22, 16, 20)
             FlyFloatBtn.TextColor3 = Color3.fromRGB(240, 180, 160)
             FlyFloatBtn.Text = "🚀 FLY: OFF"
-            flyFloatStroke.Color = Color3.fromRGB(160, 60, 40)
+            flyFloatStroke.Color = Color3.fromRGB(170, 70, 45)
         end
     end
     if not fromUI and flyToggleObj and flyToggleObj.Set then
-        flyUpdating = true
         flyToggleObj:Set(state)
-        flyUpdating = false
     end
 
     if state then
@@ -796,6 +814,7 @@ local function UpdateFlyState(state, fromUI)
             end
 
             hrp.AssemblyLinearVelocity = Vector3.zero
+
             local moveVector = Vector3.zero
 
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then
@@ -817,7 +836,6 @@ local function UpdateFlyState(state, fromUI)
                 moveVector = moveVector - Vector3.new(0, 1, 0)
             end
 
-            -- на телефоне работает от стандартного джойстика Roblox
             if moveVector.Magnitude == 0 and hum.MoveDirection.Magnitude > 0 then
                 local moveDir = hum.MoveDirection
                 moveVector = moveVector + Vector3.new(moveDir.X, camCF.LookVector.Y * moveDir.Magnitude, moveDir.Z)
@@ -852,139 +870,25 @@ FlyFloatBtn.MouseButton1Click:Connect(function()
     UpdateFlyState(not Settings.Misc.Fly, false)
 end)
 
-if VUpBtn then
-    VUpBtn.MouseButton1Click:Connect(function() DoVClip(Settings.Misc.VClipDistance) end)
-    VDownBtn.MouseButton1Click:Connect(function() DoVClip(-Settings.Misc.VClipDistance) end)
-end
-
--- [[ AIM LOCK STATE ]]
 local function UpdateAimState(state)
     AimActive = state
     if state then
         Settings.Aimbot.LockedTarget = GetClosestPlayerForAim()
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(110, 25, 200)
+        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 210)
         AimFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         AimFloatBtn.Text = "🎯 AIM: ON"
-        aimFloatStroke.Color = Color3.fromRGB(220, 90, 255)
+        aimFloatStroke.Color = Color3.fromRGB(230, 100, 255)
     else
         Settings.Aimbot.LockedTarget = nil
-        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 32)
+        AimFloatBtn.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
         AimFloatBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
         AimFloatBtn.Text = "🎯 AIM: OFF"
-        aimFloatStroke.Color = Color3.fromRGB(120, 40, 200)
+        aimFloatStroke.Color = Color3.fromRGB(130, 45, 210)
     end
 end
 
 AimFloatBtn.MouseButton1Click:Connect(function()
     UpdateAimState(not AimActive)
-end)
-
--- [[ SILENT AIM STATE ]]
-local lockedSilentTarget = nil
-local IsWallCheckVisible -- forward
-
-local function UpdateSilentAimState(state, fromUI)
-    Settings.SilentAim.Enabled = state
-    if state then
-        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 180)
-        SilentFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        SilentFloatBtn.Text = "🔮 BULLET TP: ON"
-        silentFloatStroke.Color = Color3.fromRGB(0, 220, 255)
-    else
-        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(16, 22, 32)
-        SilentFloatBtn.TextColor3 = Color3.fromRGB(150, 200, 230)
-        SilentFloatBtn.Text = "🔮 BULLET TP: OFF"
-        silentFloatStroke.Color = Color3.fromRGB(40, 90, 130)
-    end
-    if not fromUI and silentToggleObj and silentToggleObj.Set then
-        updatingFromFloat = true
-        silentToggleObj:Set(state)
-        updatingFromFloat = false
-    end
-end
-
--- как на видео: авто-лок ближайшего в круге
-local function GetClosestSilentTarget()
-    local cam = workspace.CurrentCamera or Camera
-    if not cam then return nil end
-    local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-    local shortestDist = Settings.SilentAim.FOV
-    local bestTarget = nil
-    for _, player in ipairs(Players:GetPlayers()) do
-        if IsValidTarget(player) then
-            local part = GetCharacterAimPart(player.Character, Settings.SilentAim.AimPart)
-            if part then
-                local screenPos, onScreen = cam:WorldToViewportPoint(part.Position)
-                if onScreen and screenPos.Z > 0 then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                    if dist <= shortestDist then
-                        if not Settings.SilentAim.WallCheck or IsWallCheckVisible(part, player.Character) then
-                            shortestDist = dist
-                            bestTarget = player
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return bestTarget
-end
-
-local function ToggleSilentLock()
-    if not Settings.SilentAim.Enabled then return end
-    if lockedSilentTarget then
-        lockedSilentTarget = nil
-        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 180)
-        SilentFloatBtn.Text = "🔮 BULLET TP: ON"
-    else
-        local bestTarget = GetClosestSilentTarget()
-        if bestTarget then
-            lockedSilentTarget = bestTarget
-            SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-            SilentFloatBtn.Text = "🔮 LOCKED: " .. bestTarget.Name
-        end
-    end
-end
-
-SilentFloatBtn.MouseButton1Click:Connect(function()
-    if not Settings.SilentAim.Enabled then
-        UpdateSilentAimState(true, false)
-    end
-    ToggleSilentLock()
-end)
-
--- [[ LOGIN ]]
-LoginBtn.MouseButton1Click:Connect(function()
-    StatusLabel.Text = "Статус: Проверка ключа..."
-    StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-    task.wait(0.2)
-
-    if TextBox.Text == "123" then
-        StatusLabel.Text = "Статус: Успешно!"
-        StatusLabel.TextColor3 = Color3.fromRGB(80, 255, 140)
-        task.wait(0.3)
-
-        TweenService:Create(AuthFrame, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
-        task.wait(0.4)
-        AuthFrame:Destroy()
-
-        ToggleButton.Visible = true
-        AimFloatBtn.Visible = true
-        SilentFloatBtn.Visible = true
-        FlyFloatBtn.Visible = true
-        if VUpBtn then VUpBtn.Visible = true end
-        if VDownBtn then VDownBtn.Visible = true end
-        MainFrame.Visible = true
-        TweenService:Create(MainFrame, TweenInfo.new(0.5), {BackgroundTransparency = 0}):Play()
-        TweenService:Create(MainStroke, TweenInfo.new(0.5), {Transparency = 0}):Play()
-
-        UpdateAimState(false)
-        UpdateSilentAimState(Settings.SilentAim.Enabled, true)
-        UpdateFlyState(Settings.Misc.Fly, true)
-    else
-        StatusLabel.Text = "Статус: ❌ Неверный ключ!"
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 70, 90)
-    end
 end)
 
 table.insert(_G.CociteConnections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -1002,7 +906,104 @@ table.insert(_G.CociteConnections, UserInputService.InputBegan:Connect(function(
     end
 end))
 
--- [[ WALL CHECK ]]
+local function UpdateSilentAimState(state, fromUI)
+    Settings.SilentAim.Enabled = state
+    if state then
+        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 190)
+        SilentFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        SilentFloatBtn.Text = "🔮 SILENT: ON"
+        silentFloatStroke.Color = Color3.fromRGB(0, 230, 255)
+    else
+        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(14, 20, 30)
+        SilentFloatBtn.TextColor3 = Color3.fromRGB(150, 200, 230)
+        SilentFloatBtn.Text = "🔮 SILENT: OFF"
+        silentFloatStroke.Color = Color3.fromRGB(40, 90, 130)
+    end
+    if not fromUI and silentToggleObj and silentToggleObj.Set then
+        updatingFromFloat = true
+        silentToggleObj:Set(state)
+        updatingFromFloat = false
+    end
+end
+
+local lockedSilentTarget = nil
+local IsWallCheckVisible
+
+local function ToggleSilentLock()
+    if not Settings.SilentAim.Enabled then return end
+    if lockedSilentTarget then
+        lockedSilentTarget = nil
+        SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 190)
+        SilentFloatBtn.Text = "🔮 SILENT: ON"
+    else
+        local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        local shortestDist = Settings.SilentAim.FOV
+        local bestTarget = nil
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if IsValidTarget(player) then
+                local part = GetCharacterAimPart(player.Character, Settings.SilentAim.AimPart)
+                if part then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if onScreen and screenPos.Z > 0 then
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                        if dist <= shortestDist then
+                            if not Settings.SilentAim.WallCheck or IsWallCheckVisible(part, player.Character) then
+                                shortestDist = dist
+                                bestTarget = player
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        if bestTarget then
+            lockedSilentTarget = bestTarget
+            SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 210, 110)
+            SilentFloatBtn.Text = "🔮 LOCKED: " .. bestTarget.Name
+        end
+    end
+end
+
+SilentFloatBtn.MouseButton1Click:Connect(function()
+    if not Settings.SilentAim.Enabled then
+        UpdateSilentAimState(true, false)
+    end
+    ToggleSilentLock()
+end)
+
+LoginBtn.MouseButton1Click:Connect(function()
+    StatusLabel.Text = "Статус: Проверка ключа..."
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+    task.wait(0.2)
+    
+    if TextBox.Text == "123" then
+        StatusLabel.Text = "Статус: Успешно!"
+        StatusLabel.TextColor3 = Color3.fromRGB(80, 255, 140)
+        task.wait(0.3)
+        
+        TweenService:Create(AuthFrame, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+        task.wait(0.4)
+        AuthFrame:Destroy()
+        
+        ToggleButton.Visible = true
+        AimFloatBtn.Visible = true
+        SilentFloatBtn.Visible = true
+        FlyFloatBtn.Visible = true
+        MainFrame.Visible = true
+        TweenService:Create(MainFrame, TweenInfo.new(0.5), {BackgroundTransparency = 0}):Play()
+        TweenService:Create(MainStroke, TweenInfo.new(0.5), {Transparency = 0}):Play()
+
+        UpdateAimState(false)
+        UpdateSilentAimState(Settings.SilentAim.Enabled, true)
+        UpdateFlyState(Settings.Misc.Fly, true)
+    else
+        StatusLabel.Text = "Статус: ❌ Неверный ключ!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 70, 90)
+    end
+end)
+
 local isInternalRay = false
 
 IsWallCheckVisible = function(part, targetChar)
@@ -1028,7 +1029,10 @@ IsWallCheckVisible = function(part, targetChar)
     return false
 end
 
--- [[ TOOL TRACKING ]]
+local currentSilentTarget = nil
+local currentSilentTargetPart = nil
+local currentSilentAimPos = nil
+
 local equippedToolName = nil
 
 local function OnCharacterAdded(char)
@@ -1056,7 +1060,6 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(OnCharacterAdded)
 
--- [[ NO SPREAD ENGINE ]]
 pcall(function()
     if hookfunction and newcclosure and checkcaller then
         local oldRandom
@@ -1065,9 +1068,10 @@ pcall(function()
             if checkcaller() then
                 return oldRandom(...)
             end
+
             if Settings.NoSpread and Settings.NoSpread.Enabled then
-                if (#args == 0) or
-                   (args[1] == -0.05 and args[2] == 0.05) or
+                if (#args == 0) or 
+                   (args[1] == -0.05 and args[2] == 0.05) or 
                    (args[1] == -0.1 and args[2] == 0.1) or
                    (args[1] == -0.1) or
                    (args[1] == -0.05) then
@@ -1075,6 +1079,7 @@ pcall(function()
                     return oldRandom(...) * (spread / 100)
                 end
             end
+
             return oldRandom(...)
         end))
     end
@@ -1093,7 +1098,6 @@ local function CalcRayDirection(origin, targetPos, spread)
     return dir * 1000
 end
 
--- [[ RAPID FIRE ]]
 local rapidFireLastShot = 0
 
 table.insert(_G.CociteConnections, RunService.Heartbeat:Connect(function()
@@ -1138,7 +1142,6 @@ LocalPlayer.CharacterAdded:Connect(function()
     end)
 end)
 
--- [[ DRAWINGS: FOV КРУГИ + ТРАСЕР ]]
 local AimbotFOVCircle = nil
 local SilentFOVCircle = nil
 local SilentTracerLine = nil
@@ -1155,13 +1158,12 @@ pcall(function()
         table.insert(_G.CociteDrawings, aCircle)
         AimbotFOVCircle = aCircle
 
-        -- красный круг как на видео
         local sCircle = Drawing.new("Circle")
         sCircle.Visible = false
         sCircle.Filled = false
         sCircle.Thickness = 1.5
-        sCircle.Color = Color3.fromRGB(255, 80, 80)
-        sCircle.Transparency = 0.75
+        sCircle.Color = Color3.fromRGB(0, 210, 255)
+        sCircle.Transparency = 0.7
         sCircle.Radius = Settings.SilentAim.FOV
         table.insert(_G.CociteDrawings, sCircle)
         SilentFOVCircle = sCircle
@@ -1176,154 +1178,32 @@ pcall(function()
     end
 end)
 
--- [[ LOCKED TAG — метка над головой как на видео ]]
-local currentTagPlayer = nil
-
-local function SetLockTag(player)
-    if currentTagPlayer == player then return end
-    -- снести старую
-    if currentTagPlayer and currentTagPlayer.Character then
-        local oldHead = currentTagPlayer.Character:FindFirstChild("Head")
-        local oldTag = oldHead and oldHead:FindFirstChild("CociteLockTag")
-        if oldTag then oldTag:Destroy() end
-    end
-    currentTagPlayer = player
-    if player and player.Character then
-        local head = player.Character:FindFirstChild("Head")
-        if head then
-            local bb = Instance.new("BillboardGui")
-            bb.Name = "CociteLockTag"
-            bb.Size = UDim2.new(0, 120, 0, 20)
-            bb.StudsOffset = Vector3.new(0, 2.4, 0)
-            bb.AlwaysOnTop = true
-            local t = Instance.new("TextLabel")
-            t.Size = UDim2.new(1, 0, 1, 0)
-            t.BackgroundTransparency = 1
-            t.Font = Enum.Font.GothamBold
-            t.Text = "LOCKED"
-            t.TextColor3 = Color3.fromRGB(255, 60, 60)
-            t.TextSize = 13
-            t.TextStrokeTransparency = 0.3
-            t.Parent = bb
-            bb.Parent = head
-        end
-    end
-end
-
--- [[ KILL TARGET: выбрал игрока → стреляешь → нок → автостомп ]]
-local killTarget = nil
-local killStomping = false
-local lastStomp = 0
-
-local function GetStompTool()
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    local stomp = char:FindFirstChild("Stomp")
-    if stomp then return stomp end
-    local bp = LocalPlayer:FindFirstChild("Backpack")
-    stomp = bp and bp:FindFirstChild("Stomp")
-    if stomp then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum:EquipTool(stomp)
-            return char:FindFirstChild("Stomp")
-        end
-    end
-    return nil
-end
-
-table.insert(_G.CociteConnections, RunService.Heartbeat:Connect(function()
-    if not killTarget then return end
-
-    local tChar = killTarget.Character
-    local tHum = tChar and tChar:FindFirstChildOfClass("Humanoid")
-    local tEffects = tChar and tChar:FindFirstChild("BodyEffects")
-    local ko = tEffects and (tEffects:FindFirstChild("K.O") or tEffects:FindFirstChild("KO"))
-    local deadFlag = tEffects and tEffects:FindFirstChild("Dead")
-    local koNow = ko and ko.Value == true
-    local isDead = (not tChar) or (deadFlag and deadFlag.Value == true) or (tHum and tHum.Health <= 0 and not koNow)
-
-    if isDead then
-        killTarget = nil
-        killStomping = false
-        if RefreshKillList then RefreshKillList() end
-        return
-    end
-
-    if koNow then
-        local lChar = LocalPlayer.Character
-        local lHrp = lChar and lChar:FindFirstChild("HumanoidRootPart")
-        local tRoot = tChar:FindFirstChild("HumanoidRootPart") or tChar:FindFirstChild("UpperTorso") or tChar:FindFirstChild("Torso")
-        if lHrp and tRoot and (lHrp.Position - tRoot.Position).Magnitude <= 12 then
-            killStomping = true
-            local now = tick()
-            if now - lastStomp >= 0.15 then
-                lastStomp = now
-                local stomp = GetStompTool()
-                if stomp then
-                    pcall(function() stomp:Activate() end)
-                end
-            end
-        else
-            killStomping = false
-        end
-    elseif killStomping then
-        killStomping = false
-    end
-end))
-
-table.insert(_G.CociteConnections, Players.PlayerRemoving:Connect(function(plr)
-    if killTarget == plr then
-        killTarget = nil
-        killStomping = false
-    end
-    if lockedSilentTarget == plr then
-        lockedSilentTarget = nil
-    end
-end))
-
--- [[ ГЛАВНЫЙ ЦЕЛЕВОЙ ЦИКЛ (RenderStepped) ]]
-local currentSilentTarget = nil
-local currentSilentTargetPart = nil
-local currentSilentAimPos = nil
-
+-- [[ SILENT AIM CORE — 100% только в locked ]]
 RunService.RenderStepped:Connect(function()
-    local cam = workspace.CurrentCamera or Camera
-    if not cam then return end
-    local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local bestTarget = nil
     local bestPart = nil
     local bestPos = nil
 
     if Settings.SilentAim.Enabled then
-        -- приоритет: kill target → ручной лок → авто-лок как на видео
-        local aimTarget = killTarget or lockedSilentTarget
-        if not aimTarget and Settings.SilentAim.AutoLock then
-            aimTarget = GetClosestSilentTarget()
-        end
-
-        if aimTarget and IsValidTarget(aimTarget) then
-            local part = GetCharacterAimPart(aimTarget.Character, Settings.SilentAim.AimPart)
+        if lockedSilentTarget and IsValidTarget(lockedSilentTarget) then
+            -- sticky: всегда бьём только в locked, FOV игнорируем
+            local part = GetCharacterAimPart(lockedSilentTarget.Character, Settings.SilentAim.AimPart)
             if part then
-                -- sticky: залоченная/выбранная цель редиректит всегда, без проверки FOV и экрана
-                if not Settings.SilentAim.WallCheck or IsWallCheckVisible(part, aimTarget.Character) then
-                    bestTarget = aimTarget
+                if not Settings.SilentAim.WallCheck or IsWallCheckVisible(part, lockedSilentTarget.Character) then
+                    bestTarget = lockedSilentTarget
                     bestPart = part
                     bestPos = GetPredictedPosition(part, Settings.SilentAim.UsePrediction, Settings.SilentAim.Prediction)
                 end
             end
-        end
-
-        if lockedSilentTarget and (not IsValidTarget(lockedSilentTarget)) then
-            lockedSilentTarget = nil
-            if not killTarget then
-                SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 180)
-                SilentFloatBtn.Text = "🔮 BULLET TP: ON"
+        else
+            if lockedSilentTarget then
+                lockedSilentTarget = nil
+                SilentFloatBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 190)
+                SilentFloatBtn.Text = "🔮 SILENT: ON"
             end
         end
     end
-
-    SetLockTag(bestTarget)
 
     currentSilentTarget = bestTarget
     currentSilentTargetPart = bestPart
@@ -1342,7 +1222,7 @@ RunService.RenderStepped:Connect(function()
 
     if SilentTracerLine then
         if Settings.SilentAim.Enabled and Settings.SilentAim.Tracers and currentSilentTargetPart then
-            local screenPos, onScreen = cam:WorldToViewportPoint(currentSilentTargetPart.Position)
+            local screenPos, onScreen = Camera:WorldToViewportPoint(currentSilentTargetPart.Position)
             if onScreen and screenPos.Z > 0 then
                 SilentTracerLine.From = center
                 SilentTracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
@@ -1356,27 +1236,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [[ BULLET TP ENGINE — редирект пуль ]]
-table.insert(_G.CociteConnections, workspace.ChildAdded:Connect(function(child)
-    if Settings.SilentAim.Enabled and currentSilentAimPos then
-        if child:IsA("BasePart") and (child.Name == "Bullet" or child.Name == "Part" or child.Name == "Effect" or string.find(string.lower(child.Name), "bullet")) then
-            task.spawn(function()
-                pcall(function()
-                    local char = LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    if hrp and (child.Position - hrp.Position).Magnitude < 250 then
-                        child.CFrame = CFrame.new(currentSilentAimPos)
-                        child.AssemblyLinearVelocity = Vector3.zero
-                    end
-                end)
-            end)
-        end
-    end
-end))
-
 local Mouse = LocalPlayer:GetMouse()
-
--- Mouse.Hit redirect
 pcall(function()
     if hookmetamethod and newcclosure and checkcaller then
         local oldIndex
@@ -1395,7 +1255,6 @@ pcall(function()
     end
 end)
 
--- Raycast + UpdateMousePos redirect
 pcall(function()
     if hookmetamethod and getnamecallmethod and newcclosure and checkcaller then
         local oldNamecall
@@ -1405,40 +1264,34 @@ pcall(function()
             local self = args[1]
 
             if not checkcaller() and not isInternalRay and Settings.SilentAim.Enabled and currentSilentAimPos then
-                local willHit = true
-                if Settings.SilentAim.HitChance < 100 then
-                    willHit = (math.random(1, 100) <= Settings.SilentAim.HitChance)
-                end
+                -- 100% hit — никакого шанса промаха
+                if self == workspace and method == "Raycast" then
+                    if typeof(args[2]) == "Vector3" and typeof(args[3]) == "Vector3" then
+                        local origin = args[2]
+                        local targetPos = currentSilentAimPos
 
-                if willHit then
-                    if self == workspace and method == "Raycast" then
-                        if typeof(args[2]) == "Vector3" and typeof(args[3]) == "Vector3" then
-                            local origin = args[2]
-                            local targetPos = currentSilentAimPos
-
-                            local toolName = equippedToolName or ""
-                            local isShotgun = string.find(string.lower(toolName), "double")
-                                           or string.find(string.lower(toolName), "tactical")
-                                           or string.find(string.lower(toolName), "shotgun")
-                            local spreadVal = 0
-                            if not (Settings.NoSpread and Settings.NoSpread.Enabled) then
-                                spreadVal = isShotgun and 6 or 0
-                            else
-                                spreadVal = ((Settings.NoSpread.Amount or 0) / 100) * (isShotgun and 6 or 0)
-                            end
-                            args[3] = CalcRayDirection(origin, targetPos, spreadVal)
-                            return oldNamecall(table.unpack(args))
+                        local toolName = equippedToolName or ""
+                        local isShotgun = string.find(string.lower(toolName), "double")
+                                       or string.find(string.lower(toolName), "tactical")
+                                       or string.find(string.lower(toolName), "shotgun")
+                        local spreadVal = 0
+                        if not (Settings.NoSpread and Settings.NoSpread.Enabled) then
+                            spreadVal = isShotgun and 6 or 0
+                        else
+                            spreadVal = ((Settings.NoSpread.Amount or 0) / 100) * (isShotgun and 6 or 0)
                         end
-                    elseif method == "FireServer" and tostring(self) == "MainEvent" then
-                        local eventArg = tostring(args[2] or args[1] or "")
-                        if eventArg == "UpdateMousePos" or eventArg == "UpdateMousePosI" or string.find(string.lower(eventArg), "mousepos") then
-                            if args[2] == eventArg then
-                                args[3] = currentSilentAimPos
-                            else
-                                args[2] = currentSilentAimPos
-                            end
-                            return oldNamecall(table.unpack(args))
+                        args[3] = CalcRayDirection(origin, targetPos, spreadVal)
+                        return oldNamecall(table.unpack(args))
+                    end
+                elseif method == "FireServer" and tostring(self) == "MainEvent" then
+                    local eventArg = tostring(args[2] or args[1] or "")
+                    if eventArg == "UpdateMousePos" or eventArg == "UpdateMousePosI" or string.find(string.lower(eventArg), "mousepos") then
+                        if args[2] == eventArg then
+                            args[3] = currentSilentAimPos
+                        else
+                            args[2] = currentSilentAimPos
                         end
+                        return oldNamecall(table.unpack(args))
                     end
                 end
             end
@@ -1448,15 +1301,35 @@ pcall(function()
     end
 end)
 
--- [[ CAMLOCK ENGINE — ЖЁСТКИЙ СНАП, БЕЗ СГЛАЖИВАНИЯ ]]
-RunService:BindToRenderStep("CociteCamLock", Enum.RenderPriority.Camera.Value + 1, function()
+RunService:BindToRenderStep("CociteCamLock", Enum.RenderPriority.Camera.Value + 1, function(dt)
     pcall(function()
         if Settings.Aimbot.Enabled and AimActive then
             local cam = workspace.CurrentCamera or Camera
             if not cam then return end
 
             local target = Settings.Aimbot.LockedTarget
-            if not target or not IsValidTarget(target) then
+            if target then
+                if not IsValidTarget(target) then
+                    target = nil
+                    Settings.Aimbot.LockedTarget = nil
+                else
+                    local part = GetCharacterAimPart(target.Character, Settings.Aimbot.AimPart)
+                    if part then
+                        local screenPos, onScreen = cam:WorldToViewportPoint(part.Position)
+                        local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                        if not onScreen or screenPos.Z <= 0 or dist > (Settings.Aimbot.FOV * 1.5) then
+                            target = nil
+                            Settings.Aimbot.LockedTarget = nil
+                        end
+                    else
+                        target = nil
+                        Settings.Aimbot.LockedTarget = nil
+                    end
+                end
+            end
+
+            if not target then
                 target = GetClosestPlayerForAim()
                 Settings.Aimbot.LockedTarget = target
             end
@@ -1464,382 +1337,511 @@ RunService:BindToRenderStep("CociteCamLock", Enum.RenderPriority.Camera.Value + 
             if target and target.Character then
                 local part = GetCharacterAimPart(target.Character, Settings.Aimbot.AimPart)
                 if part then
-                    local pos = GetPredictedPosition(part, Settings.Aimbot.UsePrediction, Settings.Aimbot.Prediction)
-                    -- мгновенный снап: никакой интерполяции
-                    cam.CFrame = CFrame.lookAt(cam.CFrame.Position, pos)
+                    local aimPos = GetPredictedPosition(part, Settings.Aimbot.UsePrediction, Settings.Aimbot.Prediction)
+                    if aimPos then
+                        local camPos = cam.CFrame.Position
+                        local targetCF = CFrame.lookAt(camPos, aimPos)
+                        if Settings.Aimbot.Smooth then
+                            local smoothness = math.clamp(Settings.Aimbot.Smoothness or 0.35, 0.01, 1)
+                            local smoothFactor = math.clamp(1 - math.pow(1 - math.clamp(smoothness, 0.01, 0.99), (dt or 0.016) * 60), 0.01, 1)
+                            cam.CFrame = cam.CFrame:Lerp(targetCF, smoothFactor)
+                        else
+                            cam.CFrame = targetCF
+                        end
+                    end
                 end
             end
         end
     end)
 end)
 
--- [[ ESP ENGINE ]]
-local espData = {}
-
-local function RemoveESP(player)
-    local d = espData[player]
-    if d then
-        if d.Box then pcall(function() d.Box:Remove() end) end
-        if d.BB then pcall(function() d.BB:Destroy() end) end
-        if d.HL then pcall(function() d.HL:Destroy() end) end
-        espData[player] = nil
+local function RemoveHighlight(player)
+    if Settings.ESP.ActiveHighlights[player] then
+        Settings.ESP.ActiveHighlights[player]:Destroy()
+        Settings.ESP.ActiveHighlights[player] = nil
     end
 end
 
-local function EnsureESP(player)
-    if player == LocalPlayer or espData[player] then return end
-    local d = {Box = nil, BB = nil, HL = nil}
-    pcall(function()
-        if Drawing and Drawing.new then
-            local box = Drawing.new("Square")
-            box.Thickness = 1.5
-            box.Filled = false
-            box.Visible = false
-            box.Color = Color3.fromRGB(180, 60, 255)
-            d.Box = box
+local function ClearESP()
+    for _, objList in pairs(Settings.ESP.ActiveDrawings) do
+        for _, obj in pairs(objList) do
+            if obj then obj:Remove() end
         end
-    end)
-    espData[player] = d
+    end
+    Settings.ESP.ActiveDrawings = {}
+
+    for player, _ in pairs(Settings.ESP.ActiveHighlights) do
+        RemoveHighlight(player)
+    end
 end
 
-for _, p in ipairs(Players:GetPlayers()) do EnsureESP(p) end
-table.insert(_G.CociteConnections, Players.PlayerAdded:Connect(EnsureESP))
-table.insert(_G.CociteConnections, Players.PlayerRemoving:Connect(RemoveESP))
+Players.PlayerRemoving:Connect(function(player)
+    if Settings.ESP.ActiveDrawings[player] then
+        for _, obj in pairs(Settings.ESP.ActiveDrawings[player]) do
+            if obj then obj:Remove() end
+        end
+        Settings.ESP.ActiveDrawings[player] = nil
+    end
+    RemoveHighlight(player)
+end)
 
-table.insert(_G.CociteConnections, RunService.Heartbeat:Connect(function()
-    local cam = workspace.CurrentCamera or Camera
-    if not cam then return end
-    for player, d in pairs(espData) do
-        local show = Settings.ESP.Enabled and IsValidTarget(player)
-        if show then
+RunService.RenderStepped:Connect(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if Settings.ESP.Enabled and IsValidTarget(player) then
             local char = player.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local head = char and char:FindFirstChild("Head")
-            if hrp and head then
-                -- chams
-                if Settings.ESP.Chams then
-                    if not d.HL or d.HL.Parent ~= char then
-                        if d.HL then pcall(function() d.HL:Destroy() end) end
-                        local hl = Instance.new("Highlight")
-                        hl.FillColor = Color3.fromRGB(140, 40, 255)
-                        hl.OutlineColor = Color3.fromRGB(220, 150, 255)
-                        hl.FillTransparency = 0.55
-                        hl.OutlineTransparency = 0
-                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        hl.Parent = char
-                        d.HL = hl
-                    end
-                elseif d.HL then
-                    pcall(function() d.HL:Destroy() end)
-                    d.HL = nil
-                end
-                -- names
-                if Settings.ESP.Names then
-                    if not d.BB or d.BB.Parent ~= head then
-                        if d.BB then pcall(function() d.BB:Destroy() end) end
-                        local bb = Instance.new("BillboardGui")
-                        bb.Size = UDim2.new(0, 100, 0, 18)
-                        bb.StudsOffset = Vector3.new(0, 2, 0)
-                        bb.AlwaysOnTop = true
-                        local tl = Instance.new("TextLabel")
-                        tl.Size = UDim2.new(1, 0, 1, 0)
-                        tl.BackgroundTransparency = 1
-                        tl.Font = Enum.Font.GothamBold
-                        tl.Text = player.Name
-                        tl.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        tl.TextSize = 12
-                        tl.TextStrokeTransparency = 0.4
-                        tl.Parent = bb
-                        bb.Parent = head
-                        d.BB = bb
-                    end
-                elseif d.BB then
-                    pcall(function() d.BB:Destroy() end)
-                    d.BB = nil
-                end
-                -- box
-                if d.Box then
-                    if Settings.ESP.Boxes then
-                        local top = cam:WorldToViewportPoint(hrp.Position + Vector3.new(0, 3, 0))
-                        local bottom = cam:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
-                        if top.Z > 0 and bottom.Z > 0 then
-                            local h = math.abs(top.Y - bottom.Y)
-                            local w = h * 0.65
-                            d.Box.Size = Vector2.new(w, h)
-                            d.Box.Position = Vector2.new(top.X - w / 2, top.Y)
-                            d.Box.Visible = true
-                        else
-                            d.Box.Visible = false
-                        end
-                    else
-                        d.Box.Visible = false
-                    end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            
+            if not Settings.ESP.ActiveDrawings[player] then
+                local box = Drawing.new("Square")
+                box.Visible = false
+                box.Color = Color3.fromRGB(180, 50, 255)
+                box.Thickness = 1.5
+                box.Filled = false
+                
+                local nameText = Drawing.new("Text")
+                nameText.Visible = false
+                nameText.Color = Color3.fromRGB(255, 255, 255)
+                nameText.Size = 13
+                nameText.Center = true
+                nameText.Outline = true
+                
+                Settings.ESP.ActiveDrawings[player] = {Box = box, Name = nameText}
+            end
+            
+            local visuals = Settings.ESP.ActiveDrawings[player]
+            local box, nameText = visuals.Box, visuals.Name
+            
+            if onScreen then
+                local scaleFactor = 300 / pos.Z
+                local size = Vector2.new(2, 3) * scaleFactor
+                box.Size = size
+                box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
+                box.Visible = Settings.ESP.Boxes
+                
+                nameText.Text = player.Name
+                nameText.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 18)
+                nameText.Visible = Settings.ESP.Names
+            else
+                box.Visible = false
+                nameText.Visible = false
+            end
+
+            if Settings.ESP.Chams then
+                if not Settings.ESP.ActiveHighlights[player] or Settings.ESP.ActiveHighlights[player].Parent ~= char then
+                    RemoveHighlight(player)
+                    local hl = Instance.new("Highlight")
+                    hl.Name = "CociteChams"
+                    hl.FillColor = Color3.fromRGB(150, 40, 255)
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.FillTransparency = 0.4
+                    hl.OutlineTransparency = 0
+                    hl.Adornee = char
+                    hl.Parent = char
+                    Settings.ESP.ActiveHighlights[player] = hl
+                else
+                    Settings.ESP.ActiveHighlights[player].Enabled = true
                 end
             else
-                if d.Box then d.Box.Visible = false end
-                if d.HL then pcall(function() d.HL:Destroy() end) d.HL = nil end
-                if d.BB then pcall(function() d.BB:Destroy() end) d.BB = nil end
+                RemoveHighlight(player)
             end
         else
-            if d.Box then d.Box.Visible = false end
-            if d.HL then pcall(function() d.HL:Destroy() end) d.HL = nil end
-            if d.BB then pcall(function() d.BB:Destroy() end) d.BB = nil end
+            if Settings.ESP.ActiveDrawings[player] then
+                Settings.ESP.ActiveDrawings[player].Box.Visible = false
+                Settings.ESP.ActiveDrawings[player].Name.Visible = false
+            end
+            RemoveHighlight(player)
         end
     end
-end))
+end)
 
--- [[ UI: AIM СТРАНИЦА ]]
-CreateSection(AimbotPage, "Aim Lock (снап без сглаживания)")
-CreateToggle(AimbotPage, "AIM LOCK", Settings.Aimbot.Enabled, function(val)
-    Settings.Aimbot.Enabled = val
-    if not val and AimActive then
+-- Populate AIMBOT Page
+CreateSection(AimbotPage, "CAMERA AIMBOT (REGULAR AIM / CAMLOCK)")
+
+aimbotToggleObj = CreateToggle(AimbotPage, "Aimbot Master", Settings.Aimbot.Enabled, function(state)
+    Settings.Aimbot.Enabled = state
+    AimFloatBtn.Visible = state
+    if not state then
         UpdateAimState(false)
     end
 end)
-CreateToggle(AimbotPage, "Показывать FOV круг", Settings.Aimbot.ShowFOV, function(val)
-    Settings.Aimbot.ShowFOV = val
-end)
-CreateToggle(AimbotPage, "Предсказание (Aim Lock)", Settings.Aimbot.UsePrediction, function(val)
-    Settings.Aimbot.UsePrediction = val
-end)
-CreateSlider(AimbotPage, "FOV Aim Lock", 50, 600, Settings.Aimbot.FOV, "", 5, function(val)
-    Settings.Aimbot.FOV = val
-end)
-CreateSlider(AimbotPage, "Предикт Aim Lock", 0, 0.5, Settings.Aimbot.Prediction, "", 0.01, function(val)
-    Settings.Aimbot.Prediction = val
-end)
-CreateCycle(AimbotPage, "Парт", {"Head", "UpperTorso", "HumanoidRootPart", "Random"}, 3, function(val)
+
+CreateCycle(AimbotPage, "Aim Part", {"Head", "HumanoidRootPart", "UpperTorso", "Random"}, 1, function(val)
     Settings.Aimbot.AimPart = val
 end)
 
-CreateSection(AimbotPage, "Silent Aim / Bullet TP (как на видео)")
-silentToggleObj = CreateToggle(AimbotPage, "BULLET TP", Settings.SilentAim.Enabled, function(val)
+CreateSlider(AimbotPage, "Aimbot FOV", 30, 500, Settings.Aimbot.FOV, "px", 10, function(val)
+    Settings.Aimbot.FOV = val
+end)
+
+CreateToggle(AimbotPage, "Show Aimbot FOV", Settings.Aimbot.ShowFOV, function(state)
+    Settings.Aimbot.ShowFOV = state
+end)
+
+CreateToggle(AimbotPage, "Smooth Tracking", Settings.Aimbot.Smooth, function(state)
+    Settings.Aimbot.Smooth = state
+end)
+
+CreateSlider(AimbotPage, "Smooth Speed", 0.05, 1, Settings.Aimbot.Smoothness, "", 0.05, function(val)
+    Settings.Aimbot.Smoothness = val
+end)
+
+CreateToggle(AimbotPage, "Aimbot Prediction", Settings.Aimbot.UsePrediction, function(state)
+    Settings.Aimbot.UsePrediction = state
+end)
+
+CreateSlider(AimbotPage, "Prediction Val", 0.05, 0.3, Settings.Aimbot.Prediction, "s", 0.005, function(val)
+    Settings.Aimbot.Prediction = val
+end)
+
+CreateSection(AimbotPage, "SILENT AIM (100% LOCKED ONLY)")
+
+silentToggleObj = CreateToggle(AimbotPage, "Silent Aim Master", Settings.SilentAim.Enabled, function(state)
     if not updatingFromFloat then
-        UpdateSilentAimState(val, true)
+        UpdateSilentAimState(state, true)
     end
 end)
-CreateToggle(AimbotPage, "Авто-лок (ближний в круге)", Settings.SilentAim.AutoLock, function(val)
-    Settings.SilentAim.AutoLock = val
-end)
-CreateToggle(AimbotPage, "Показывать FOV круг", Settings.SilentAim.ShowFOV, function(val)
-    Settings.SilentAim.ShowFOV = val
-end)
-CreateToggle(AimbotPage, "Трасеры", Settings.SilentAim.Tracers, function(val)
-    Settings.SilentAim.Tracers = val
-end)
-CreateToggle(AimbotPage, "Предсказание", Settings.SilentAim.UsePrediction, function(val)
-    Settings.SilentAim.UsePrediction = val
-end)
-CreateToggle(AimbotPage, "Валлчек", Settings.SilentAim.WallCheck, function(val)
-    Settings.SilentAim.WallCheck = val
-end)
-CreateSlider(AimbotPage, "FOV Silent", 50, 600, Settings.SilentAim.FOV, "", 5, function(val)
-    Settings.SilentAim.FOV = val
-end)
-CreateSlider(AimbotPage, "Предикт Silent", 0, 0.5, Settings.SilentAim.Prediction, "", 0.01, function(val)
-    Settings.SilentAim.Prediction = val
-end)
-CreateSlider(AimbotPage, "Шанс попадания", 1, 100, Settings.SilentAim.HitChance, "%", 1, function(val)
-    Settings.SilentAim.HitChance = val
-end)
-CreateCycle(AimbotPage, "Парт", {"Head", "UpperTorso", "HumanoidRootPart", "Random"}, 3, function(val)
+
+CreateCycle(AimbotPage, "Silent Part", {"HumanoidRootPart", "Head", "UpperTorso", "Random"}, 1, function(val)
     Settings.SilentAim.AimPart = val
 end)
 
--- Kill Target UI
-local KillStatusLbl = Instance.new("TextLabel", AimbotPage)
-KillStatusLbl.BackgroundTransparency = 1
-KillStatusLbl.Size = UDim2.new(1, 0, 0, 16)
-KillStatusLbl.Font = Enum.Font.GothamSemibold
-KillStatusLbl.Text = "цель: не выбрана"
-KillStatusLbl.TextColor3 = Color3.fromRGB(130, 120, 160)
-KillStatusLbl.TextSize = 11
-
-local RefreshKillList
-
-local function UpdateKillStatus()
-    if not killTarget or not killTarget.Parent then
-        KillStatusLbl.Text = "цель: не выбрана"
-        KillStatusLbl.TextColor3 = Color3.fromRGB(130, 120, 160)
-    elseif killStomping then
-        KillStatusLbl.Text = killTarget.Name .. " — нокнут, стомплю (будь рядом)"
-        KillStatusLbl.TextColor3 = Color3.fromRGB(255, 170, 60)
-    else
-        KillStatusLbl.Text = killTarget.Name .. " — возьми оружие и стреляй"
-        KillStatusLbl.TextColor3 = Color3.fromRGB(80, 255, 140)
-    end
-end
-
-CreateSection(AimbotPage, "Kill Target — выбрал и убил")
-CreateButton(AimbotPage, "🔄 ОБНОВИТЬ СПИСОК ИГРОКОВ", function()
-    if RefreshKillList then RefreshKillList() end
+CreateSlider(AimbotPage, "Silent FOV", 30, 500, Settings.SilentAim.FOV, "px", 10, function(val)
+    Settings.SilentAim.FOV = val
 end)
 
-local KillListFrame = Instance.new("ScrollingFrame", AimbotPage)
-KillListFrame.BackgroundColor3 = Color3.fromRGB(14, 11, 24)
-KillListFrame.Size = UDim2.new(1, 0, 0, 130)
-KillListFrame.BorderSizePixel = 0
-KillListFrame.ScrollBarThickness = 3
-KillListFrame.ScrollBarImageColor3 = Color3.fromRGB(140, 40, 255)
-KillListFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-KillListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-Instance.new("UICorner", KillListFrame).CornerRadius = UDim.new(0, 8)
-do
-    local kPad = Instance.new("UIPadding", KillListFrame)
-    kPad.PaddingTop = UDim.new(0, 4)
-    kPad.PaddingBottom = UDim.new(0, 4)
-    kPad.PaddingLeft = UDim.new(0, 4)
-    kPad.PaddingRight = UDim.new(0, 4)
-end
-do
-    local kLayout = Instance.new("UIListLayout", KillListFrame)
-    kLayout.Padding = UDim.new(0, 4)
-end
-
-RefreshKillList = function()
-    for _, c in ipairs(KillListFrame:GetChildren()) do
-        if c:IsA("TextButton") then c:Destroy() end
-    end
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            local selected = (killTarget == plr)
-            local b = Instance.new("TextButton", KillListFrame)
-            b.BackgroundColor3 = selected and Color3.fromRGB(25, 95, 50) or Color3.fromRGB(22, 16, 36)
-            b.Size = UDim2.new(1, 0, 0, 26)
-            b.Font = Enum.Font.GothamSemibold
-            b.Text = selected and ("▶ " .. plr.Name) or plr.Name
-            b.TextColor3 = selected and Color3.fromRGB(80, 255, 140) or Color3.fromRGB(210, 190, 255)
-            b.TextSize = 11
-            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-            b.MouseButton1Click:Connect(function()
-                if killTarget == plr then
-                    killTarget = nil
-                    killStomping = false
-                else
-                    killTarget = plr
-                    killStomping = false
-                    if not Settings.SilentAim.Enabled then
-                        UpdateSilentAimState(true, false)
-                    end
-                end
-                UpdateKillStatus()
-                RefreshKillList()
-            end)
-        end
-    end
-end
-
-table.insert(_G.CociteConnections, Players.PlayerAdded:Connect(function()
-    RefreshKillList()
-end))
-
--- тикер статуса килл-таргета
-task.spawn(function()
-    while ScreenGui.Parent do
-        task.wait(0.25)
-        UpdateKillStatus()
-    end
+CreateToggle(AimbotPage, "Show Silent FOV", Settings.SilentAim.ShowFOV, function(state)
+    Settings.SilentAim.ShowFOV = state
 end)
 
-UpdateKillStatus()
-RefreshKillList()
-
--- [[ UI: ESP СТРАНИЦА ]]
-CreateSection(ESPPage, "ESP")
-CreateToggle(ESPPage, "ESP ВКЛ", Settings.ESP.Enabled, function(val)
-    Settings.ESP.Enabled = val
-end)
-CreateToggle(ESPPage, "Боксы", Settings.ESP.Boxes, function(val)
-    Settings.ESP.Boxes = val
-end)
-CreateToggle(ESPPage, "Чамсы", Settings.ESP.Chams, function(val)
-    Settings.ESP.Chams = val
-end)
-CreateToggle(ESPPage, "Имена", Settings.ESP.Names, function(val)
-    Settings.ESP.Names = val
+CreateToggle(AimbotPage, "Silent Tracers", Settings.SilentAim.Tracers, function(state)
+    Settings.SilentAim.Tracers = state
 end)
 
--- [[ UI: WHITELIST СТРАНИЦА ]]
-CreateSection(WhitelistPage, "Whitelist по нику")
-local WLInput = Instance.new("Frame", WhitelistPage)
-WLInput.BackgroundColor3 = Color3.fromRGB(16, 12, 26)
-WLInput.Size = UDim2.new(1, 0, 0, 36)
-Instance.new("UICorner", WLInput).CornerRadius = UDim.new(0, 8)
-local WLBox = Instance.new("TextBox", WLInput)
-WLBox.BackgroundTransparency = 1
-WLBox.Position = UDim2.new(0, 10, 0, 0)
-WLBox.Size = UDim2.new(1, -20, 1, 0)
-WLBox.Font = Enum.Font.GothamSemibold
-WLBox.PlaceholderText = "ник игрока..."
-WLBox.Text = ""
-WLBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-WLBox.PlaceholderColor3 = Color3.fromRGB(100, 90, 120)
-WLBox.TextSize = 12
+-- HitChance убран из UI, всегда 100%
 
-local WLStatus = Instance.new("TextLabel", WhitelistPage)
-WLStatus.BackgroundTransparency = 1
-WLStatus.Size = UDim2.new(1, 0, 0, 18)
-WLStatus.Font = Enum.Font.Gotham
-WLStatus.Text = "в списке: —"
-WLStatus.TextColor3 = Color3.fromRGB(130, 120, 160)
-WLStatus.TextSize = 11
+CreateToggle(AimbotPage, "Silent Prediction", Settings.SilentAim.UsePrediction, function(state)
+    Settings.SilentAim.UsePrediction = state
+end)
 
-local function UpdateWLStatus()
-    local names = {}
-    for k in pairs(Settings.Whitelist.Players) do
-        if type(k) == "string" then table.insert(names, k) end
-    end
-    WLStatus.Text = (#names > 0) and ("в списке: " .. table.concat(names, ", ")) or "в списке: —"
-end
+CreateSlider(AimbotPage, "Prediction Amount", 0.05, 0.3, Settings.SilentAim.Prediction, "s", 0.005, function(val)
+    Settings.SilentAim.Prediction = val
+end)
 
-CreateButton(WhitelistPage, "ДОБАВИТЬ / УБРАТЬ", function()
-    local name = WLBox.Text
-    if name and name ~= "" then
-        if Settings.Whitelist.Players[name] then
-            Settings.Whitelist.Players[name] = nil
-        else
-            Settings.Whitelist.Players[name] = true
-        end
-        WLBox.Text = ""
-        UpdateWLStatus()
-    end
+CreateToggle(AimbotPage, "Wall Check", Settings.SilentAim.WallCheck, function(state)
+    Settings.SilentAim.WallCheck = state
 end)
-CreateButton(WhitelistPage, "ОЧИСТИТЬ ВСЁ", function()
-    Settings.Whitelist.Players = {}
-    UpdateWLStatus()
-end)
-CreateToggle(WhitelistPage, "Не целить друзей", Settings.Whitelist.Friends, function(val)
-    Settings.Whitelist.Friends = val
-end)
-CreateToggle(WhitelistPage, "Не целить тиму", Settings.Whitelist.Team, function(val)
-    Settings.Whitelist.Team = val
-end)
-UpdateWLStatus()
 
--- [[ UI: MISC СТРАНИЦА ]]
-flyToggleObj = CreateToggle(MiscPage, "FLY", Settings.Misc.Fly, function(val)
-    if not flyUpdating then
-        UpdateFlyState(val, false)
-    end
+CreateToggle(AimbotPage, "Sticky Target (Close Combat Fix)", Settings.SilentAim.StickyTarget, function(state)
+    Settings.SilentAim.StickyTarget = state
 end)
-CreateSlider(MiscPage, "Скорость полёта", 10, 150, Settings.Misc.FlySpeed, "", 1, function(val)
-    Settings.Misc.FlySpeed = val
+
+CreateSection(AimbotPage, "SPREAD MODIFIER (NO SPREAD)")
+
+CreateToggle(AimbotPage, "No Spread", Settings.NoSpread.Enabled, function(state)
+    Settings.NoSpread.Enabled = state
 end)
-CreateSlider(MiscPage, "VClip дистанция", 2, 50, Settings.Misc.VClipDistance, "", 1, function(val)
-    Settings.Misc.VClipDistance = val
-end)
-CreateToggle(MiscPage, "Rapid Fire", Settings.RapidFire.Enabled, function(val)
-    Settings.RapidFire.Enabled = val
-end)
-CreateSlider(MiscPage, "Rapid Fire Rate", 0.03, 0.5, Settings.RapidFire.Rate, "s", 0.01, function(val)
-    Settings.RapidFire.Rate = val
-end)
-CreateToggle(MiscPage, "No Spread", Settings.NoSpread.Enabled, function(val)
-    Settings.NoSpread.Enabled = val
-end)
-CreateSlider(MiscPage, "Разброс %", 0, 100, Settings.NoSpread.Amount, "%", 1, function(val)
+
+CreateSlider(AimbotPage, "Spread Amount", 0, 100, Settings.NoSpread.Amount, "%", 5, function(val)
     Settings.NoSpread.Amount = val
 end)
-CreateButton(MiscPage, "⚙ ПЕРЕПАТЧИТЬ ФАЙРРЕЙТ", function()
-    PatchGunFireRate()
+
+CreateSection(AimbotPage, "RAPID FIRE")
+
+CreateToggle(AimbotPage, "Rapid Fire", Settings.RapidFire.Enabled, function(state)
+    Settings.RapidFire.Enabled = state
 end)
+
+CreateSlider(AimbotPage, "Fire Rate Delay", 0.03, 0.5, Settings.RapidFire.Rate, "s", 0.01, function(val)
+    Settings.RapidFire.Rate = val
+end)
+
+-- ESP
+CreateSection(ESPPage, "ESP VISUALS")
+
+CreateToggle(ESPPage, "Master ESP", false, function(state)
+    Settings.ESP.Enabled = state
+    if not state then
+        ClearESP()
+    end
+end)
+
+CreateToggle(ESPPage, "Box ESP", true, function(state)
+    Settings.ESP.Boxes = state
+end)
+
+CreateToggle(ESPPage, "Chams ESP", true, function(state)
+    Settings.ESP.Chams = state
+end)
+
+CreateToggle(ESPPage, "Name ESP", true, function(state)
+    Settings.ESP.Names = state
+end)
+
+-- WHITELIST
+CreateSection(WhitelistPage, "GLOBAL FILTERS")
+
+CreateToggle(WhitelistPage, "Whitelist Friends", Settings.Whitelist.Friends, function(state)
+    Settings.Whitelist.Friends = state
+end)
+
+CreateToggle(WhitelistPage, "Whitelist Team", Settings.Whitelist.Team, function(state)
+    Settings.Whitelist.Team = state
+end)
+
+CreateSection(WhitelistPage, "ADD PLAYER TO WHITELIST")
+
+local serverPickerFrame = Instance.new("Frame", WhitelistPage)
+serverPickerFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
+serverPickerFrame.Size = UDim2.new(1, 0, 0, 34)
+Instance.new("UICorner", serverPickerFrame).CornerRadius = UDim.new(0, 10)
+local spStroke = Instance.new("UIStroke", serverPickerFrame)
+spStroke.Color = Color3.fromRGB(100, 45, 170)
+spStroke.Thickness = 1.3
+
+local selectedPlayerName = ""
+local serverPlayers = {}
+
+local function RefreshServerPlayers()
+    serverPlayers = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(serverPlayers, p.Name)
+        end
+    end
+    if #serverPlayers == 0 then
+        table.insert(serverPlayers, "None in server")
+        selectedPlayerName = ""
+    else
+        if not table.find(serverPlayers, selectedPlayerName) then
+            selectedPlayerName = serverPlayers[1]
+        end
+    end
+end
+
+RefreshServerPlayers()
+
+local selectBtn = Instance.new("TextButton", serverPickerFrame)
+selectBtn.BackgroundTransparency = 1
+selectBtn.Position = UDim2.new(0, 10, 0, 0)
+selectBtn.Size = UDim2.new(1, -70, 1, 0)
+selectBtn.Font = Enum.Font.GothamSemibold
+selectBtn.Text = "Pick: " .. (selectedPlayerName ~= "" and selectedPlayerName or "None")
+selectBtn.TextColor3 = Color3.fromRGB(210, 190, 255)
+selectBtn.TextSize = 11
+selectBtn.TextXAlignment = Enum.TextXAlignment.Left
+
+local curIdx = 1
+selectBtn.MouseButton1Click:Connect(function()
+    RefreshServerPlayers()
+    if #serverPlayers > 0 and serverPlayers[1] ~= "None in server" then
+        curIdx = curIdx + 1
+        if curIdx > #serverPlayers then curIdx = 1 end
+        selectedPlayerName = serverPlayers[curIdx]
+        selectBtn.Text = "Pick: " .. selectedPlayerName
+    else
+        selectBtn.Text = "Pick: None in server"
+        selectedPlayerName = ""
+    end
+end)
+
+local addPickerBtn = Instance.new("TextButton", serverPickerFrame)
+addPickerBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 210)
+addPickerBtn.Position = UDim2.new(1, -56, 0.5, -12)
+addPickerBtn.Size = UDim2.new(0, 48, 0, 24)
+addPickerBtn.Font = Enum.Font.GothamBold
+addPickerBtn.Text = "+ ADD"
+addPickerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+addPickerBtn.TextSize = 10
+Instance.new("UICorner", addPickerBtn).CornerRadius = UDim.new(0, 6)
+
+local manualInputFrame = Instance.new("Frame", WhitelistPage)
+manualInputFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
+manualInputFrame.Size = UDim2.new(1, 0, 0, 34)
+Instance.new("UICorner", manualInputFrame).CornerRadius = UDim.new(0, 10)
+local miStroke = Instance.new("UIStroke", manualInputFrame)
+miStroke.Color = Color3.fromRGB(100, 45, 170)
+miStroke.Thickness = 1.3
+
+local manualBox = Instance.new("TextBox", manualInputFrame)
+manualBox.BackgroundTransparency = 1
+manualBox.Position = UDim2.new(0, 10, 0, 0)
+manualBox.Size = UDim2.new(1, -70, 1, 0)
+manualBox.Font = Enum.Font.Gotham
+manualBox.PlaceholderText = "Type player name..."
+manualBox.PlaceholderColor3 = Color3.fromRGB(120, 100, 140)
+manualBox.Text = ""
+manualBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+manualBox.TextSize = 11
+manualBox.TextXAlignment = Enum.TextXAlignment.Left
+
+local addManualBtn = Instance.new("TextButton", manualInputFrame)
+addManualBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 210)
+addManualBtn.Position = UDim2.new(1, -56, 0.5, -12)
+addManualBtn.Size = UDim2.new(0, 48, 0, 24)
+addManualBtn.Font = Enum.Font.GothamBold
+addManualBtn.Text = "+ ADD"
+addManualBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+addManualBtn.TextSize = 10
+Instance.new("UICorner", addManualBtn).CornerRadius = UDim.new(0, 6)
+
+CreateSection(WhitelistPage, "WHITELISTED PLAYERS")
+
+local listContainer = Instance.new("Frame", WhitelistPage)
+listContainer.BackgroundTransparency = 1
+listContainer.Size = UDim2.new(1, 0, 0, 0)
+listContainer.AutomaticSize = Enum.AutomaticSize.Y
+
+local listLayout = Instance.new("UIListLayout", listContainer)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 4)
+
+local function UpdateWhitelistUI()
+    for _, child in ipairs(listContainer:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+
+    local count = 0
+    for name, _ in pairs(Settings.Whitelist.Players) do
+        count = count + 1
+        local itemFrame = Instance.new("Frame", listContainer)
+        itemFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 34)
+        itemFrame.Size = UDim2.new(1, 0, 0, 28)
+        Instance.new("UICorner", itemFrame).CornerRadius = UDim.new(0, 8)
+        local itemStroke = Instance.new("UIStroke", itemFrame)
+        itemStroke.Color = Color3.fromRGB(80, 40, 140)
+        itemStroke.Thickness = 1
+
+        local nameLabel = Instance.new("TextLabel", itemFrame)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Position = UDim2.new(0, 10, 0, 0)
+        nameLabel.Size = UDim2.new(1, -40, 1, 0)
+        nameLabel.Font = Enum.Font.GothamSemibold
+        nameLabel.Text = "🛡️ " .. tostring(name)
+        nameLabel.TextColor3 = Color3.fromRGB(220, 200, 255)
+        nameLabel.TextSize = 11
+        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+        local delBtn = Instance.new("TextButton", itemFrame)
+        delBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 60)
+        delBtn.Position = UDim2.new(1, -26, 0.5, -9)
+        delBtn.Size = UDim2.new(0, 18, 0, 18)
+        delBtn.Font = Enum.Font.GothamBold
+        delBtn.Text = "✕"
+        delBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        delBtn.TextSize = 10
+        Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 4)
+
+        delBtn.MouseButton1Click:Connect(function()
+            Settings.Whitelist.Players[name] = nil
+            Settings.Whitelist.Players[string.lower(name)] = nil
+            UpdateWhitelistUI()
+        end)
+    end
+
+    if count == 0 then
+        local emptyLbl = Instance.new("TextLabel", listContainer)
+        emptyLbl.BackgroundTransparency = 1
+        emptyLbl.Size = UDim2.new(1, 0, 0, 24)
+        emptyLbl.Font = Enum.Font.Gotham
+        emptyLbl.Text = "No custom players whitelisted"
+        emptyLbl.TextColor3 = Color3.fromRGB(120, 110, 140)
+        emptyLbl.TextSize = 11
+    end
+end
+
+addPickerBtn.MouseButton1Click:Connect(function()
+    if selectedPlayerName and selectedPlayerName ~= "" and selectedPlayerName ~= "None in server" then
+        Settings.Whitelist.Players[selectedPlayerName] = true
+        Settings.Whitelist.Players[string.lower(selectedPlayerName)] = true
+        UpdateWhitelistUI()
+    end
+end)
+
+addManualBtn.MouseButton1Click:Connect(function()
+    local text = manualBox.Text:gsub("%s+", "")
+    if text ~= "" then
+        Settings.Whitelist.Players[text] = true
+        Settings.Whitelist.Players[string.lower(text)] = true
+        manualBox.Text = ""
+        UpdateWhitelistUI()
+    end
+end)
+
+local clearAllBtn = Instance.new("TextButton", WhitelistPage)
+clearAllBtn.BackgroundColor3 = Color3.fromRGB(34, 16, 26)
+clearAllBtn.Size = UDim2.new(1, 0, 0, 28)
+clearAllBtn.Font = Enum.Font.GothamSemibold
+clearAllBtn.Text = "🗑️ Clear Whitelist"
+clearAllBtn.TextColor3 = Color3.fromRGB(255, 120, 130)
+clearAllBtn.TextSize = 11
+Instance.new("UICorner", clearAllBtn).CornerRadius = UDim.new(0, 8)
+local caStroke = Instance.new("UIStroke", clearAllBtn)
+caStroke.Color = Color3.fromRGB(130, 35, 45)
+caStroke.Thickness = 1
+
+clearAllBtn.MouseButton1Click:Connect(function()
+    Settings.Whitelist.Players = {}
+    UpdateWhitelistUI()
+end)
+
+UpdateWhitelistUI()
+
+-- MISC
+CreateSection(MiscPage, "FLY (FLIGHT SYSTEM)")
+
+flyToggleObj = CreateToggle(MiscPage, "Fly Master", Settings.Misc.Fly, function(state)
+    UpdateFlyState(state, true)
+end)
+
+CreateSlider(MiscPage, "Fly Speed", 10, 200, Settings.Misc.FlySpeed, " studs/s", 5, function(val)
+    Settings.Misc.FlySpeed = val
+end)
+
+CreateSection(MiscPage, "VCLIP (VERTICAL TELEPORT)")
+
+CreateSlider(MiscPage, "VClip Distance", 1, 50, Settings.Misc.VClipDistance, " st", 1, function(val)
+    Settings.Misc.VClipDistance = val
+end)
+
+CreateButton(MiscPage, "▲ VClip Up (Clip Above / Roof)", function()
+    DoVClip(Settings.Misc.VClipDistance)
+end)
+
+CreateButton(MiscPage, "▼ VClip Down (Clip Below / Floor)", function()
+    DoVClip(-Settings.Misc.VClipDistance)
+end)
+
+CreateSection(MiscPage, "HOTKEYS (PC)")
+local helpFrame = Instance.new("Frame", MiscPage)
+helpFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
+helpFrame.Size = UDim2.new(1, 0, 0, 84)
+Instance.new("UICorner", helpFrame).CornerRadius = UDim.new(0, 10)
+local hfStroke = Instance.new("UIStroke", helpFrame)
+hfStroke.Color = Color3.fromRGB(100, 45, 170)
+hfStroke.Thickness = 1.3
+
+local hfLayout = Instance.new("UIListLayout", helpFrame)
+hfLayout.SortOrder = Enum.SortOrder.LayoutOrder
+hfLayout.Padding = UDim.new(0, 2)
+local hfPad = Instance.new("UIPadding", helpFrame)
+hfPad.PaddingLeft = UDim.new(0, 10)
+hfPad.PaddingTop = UDim.new(0, 6)
+
+local function AddKeyHelp(txt)
+    local lbl = Instance.new("TextLabel", helpFrame)
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, -20, 0, 16)
+    lbl.Font = Enum.Font.GothamSemibold
+    lbl.Text = txt
+    lbl.TextColor3 = Color3.fromRGB(200, 180, 230)
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+end
+
+AddKeyHelp("• [X] - Toggle Fly On / Off")
+AddKeyHelp("• [B] - VClip Up (through ceiling)")
+AddKeyHelp("• [V] - VClip Down (through floor)")
+AddKeyHelp("• [Q] - Toggle Regular Aimbot (CamLock)")
