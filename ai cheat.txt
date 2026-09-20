@@ -80,10 +80,9 @@ local Settings = {
         Delay = 0.01,
         -- v2 options
         ZeroCooldown = true,   -- обнуляет ShootingCooldown / FireRate (Да Худ, Деа Худ и т.д.)
-        UseRemote = false,     -- дополнительный выстрел через remote (Shoot / ShootGun), если он есть
-        InfAmmo = false,       -- не даёт патронам кончаться (визуально локально)
+        UseRemote = false,     -- дополнительный выстрел через remote внутри тулзы (Shoot / ShootGun)
+        InfAmmo = false,       -- не даёт патронам кончаться (локально)
         RequireAmmo = true,    -- не стрелять, если патронов 0
-        AutoEquip = true,      -- не стрелять из gun, который лежит в Backpack (спамил бы Activate впустую)
     },
     Whitelist = {
         Players = {},
@@ -1160,17 +1159,42 @@ local function GetAmmoValue(tool)
 end
 
 --[[ Обнуление кулдаунов. Именно это делает rapid fire настоящим, а не косметическим.
-     Много где cooldown хранится как Value-объект внутри тулзы или в внутренней папке. ]]
+     Много где cooldown хранится как Value-объект внутри тулзы или в внутренней папке.
+     FindFirstChild(name, true) — рекурсивно, поэтому достаёт и вложенные значения. ]]
+local COOLDOWN_NAMES = {
+    "ShootingCooldown", "FireRate", "Cooldown", "FireDelay",
+    "ShootCooldown", "Rate", "ReloadCooldown"
+}
+
 local function ZeroGunCooldowns(tool)
     if not tool or not Settings.RapidFire.ZeroCooldown then return end
-    local names = {
-        "ShootingCooldown", "FireRate", "Cooldown", "FireDelay",
-        "ShootCooldown", "Rate", "ReloadCooldown"
-    }
-    for _, name in ipairs(names) do
+    for _, name in ipairs(COOLDOWN_NAMES) do
         local v = tool:FindFirstChild(name, true)
-        if v and v:IsA("ValueBase") and typeof(v.Value) == "number" then
+        if v and v:IsA("ValueBase") and typeof(v.Value) == "number" and v.Value ~= 0 then
             pcall(function() v.Value = 0 end)
+        end
+    end
+end
+
+--[[ Пройтись по ВСЕМ пушкам: и в руках, и в рюкзаке.
+     Смысл: gun в Backpack тоже держит свой кулдаун. Если обнулить заранее,
+     то после переключения ствола он уже стреляет быстро, а не ждёт тик. ]]
+local function ZeroAllGunCooldowns()
+    if not Settings.RapidFire.ZeroCooldown then return end
+    local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+    if backpack then
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if IsGunTool(tool) then
+                ZeroGunCooldowns(tool)
+            end
+        end
+    end
+    local char = LocalPlayer.Character
+    if char then
+        for _, tool in ipairs(char:GetChildren()) do
+            if IsGunTool(tool) then
+                ZeroGunCooldowns(tool)
+            end
         end
     end
 end
@@ -1258,18 +1282,47 @@ local function RapidFireTick(dt)
     is_firing = RapidFireStep()
 end
 
---[[ Не начинаем стрелять, если клик попал по чужому/нашему GUI.
-     Основной фильтр — gameProcessedEvent: движок сам ставит true, когда клик
-     ушёл в GuiButton/TextBox. Плюс перестраховка через GetGuiObjectsAtPosition,
-     если метод доступен на нашей ScreenGui. ]]
-local function IsOverOwnGui(x, y)
-    local hit = false
-    pcall(function()
-        if not ScreenGui or not ScreenGui.GetGuiObjectsAtPosition then return end
-        local list = ScreenGui:GetGuiObjectsAtPosition(math.floor(x), math.floor(y))
-        if list and #list > 0 then hit = true end
-    end)
-    return hit
+--[[ Не начинаем стрелять, если клик попал по ИНТЕРАКТИВНОМУ элементу интерфейса
+     (кнопка нашего хаба, топбар, чат). Обычные декоративные фреймы/лейблы не считаем,
+     иначе невидимая полноэкранная панель могла бы заблокировать стрельбу целиком.
+     Основной фильтр всё равно gameProcessedEvent — это лишь перестраховка. ]]
+local INTERACTIVE_CLASSES = {
+    TextButton = true,
+    ImageButton = true,
+    TextBox = true,
+    ScrollingFrame = true,
+}
+
+local function IsOverGui(x, y)
+    local hx, hy = math.floor(x), math.floor(y)
+    local blocked = false
+
+    local function scan(container)
+        if blocked or not container then return end
+        local ok, list = pcall(function()
+            return container:GetGuiObjectsAtPosition(hx, hy)
+        end)
+        if not ok or not list then return end
+        for _, obj in ipairs(list) do
+            -- кнопки хаба — это Frame+TextButton; ловим и сам объект, и его кнопку-ребёнка
+            if INTERACTIVE_CLASSES[obj.ClassName] then
+                blocked = true
+                return
+            end
+            for _, child in ipairs(obj:GetChildren()) do
+                if INTERACTIVE_CLASSES[child.ClassName] then
+                    blocked = true
+                    return
+                end
+            end
+        end
+    end
+
+    pcall(function() scan(game:GetService("CoreGui")) end)
+    pcall(function() scan(LocalPlayer:FindFirstChildOfClass("PlayerGui")) end)
+    pcall(function() scan(ScreenGui) end)
+
+    return blocked
 end
 
 --[[ Тач-стрельба: считаем "зажатием" удержание пальца на экране.
@@ -1280,13 +1333,13 @@ table.insert(_G.CociteConnections, UserInputService.InputBegan:Connect(function(
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         if gpe then return end
         local pos = UserInputService:GetMouseLocation()
-        if IsOverOwnGui(pos.X, pos.Y) then return end
+        if IsOverGui(pos.X, pos.Y) then return end
         mouseHeld = true
         fireHeld = true
     elseif input.UserInputType == Enum.UserInputType.Touch then
         if gpe then return end
         local pos = input.Position
-        if IsOverOwnGui(pos.X, pos.Y) then return end
+        if IsOverGui(pos.X, pos.Y) then return end
         TouchHeldCount = TouchHeldCount + 1
         touchHeld = true
         fireHeld = true
@@ -1319,9 +1372,20 @@ table.insert(_G.CociteConnections, UserInputService.WindowFocusReleased:Connect(
     end
 end))
 
--- стабильный тик: 60 раз в секунду, отдельно от остальных RenderStepped задач
+-- стабильный тик: Heartbeat не привязан к fps камеры и не копит дрейф
+local cooldownSweepAccum = 0
 local rapidTickConn = RunService.Heartbeat:Connect(function(dt)
     RapidFireTick(dt)
+
+    -- раз в 0.25 сек проходим по всем пушкам (включая рюкзак) и держим кулдаун на нуле.
+    -- Так работает даже без зажатия ЛКМ: ствол уже "горячий" к первому выстрелу.
+    if Settings.RapidFire.Enabled and Settings.RapidFire.ZeroCooldown then
+        cooldownSweepAccum = cooldownSweepAccum + dt
+        if cooldownSweepAccum >= 0.25 then
+            cooldownSweepAccum = 0
+            ZeroAllGunCooldowns()
+        end
+    end
 end)
 table.insert(_G.CociteConnections, rapidTickConn)
 
