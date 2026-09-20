@@ -1,5 +1,7 @@
 -- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup & Anti-Freeze)
 -- FIXED: Silent Aim 100% только в locked + BulletTP удалён + меню чуть прокачано
+-- RAPID FIRE v2: hold-to-fire (кнопка 🔥 на телефоне / ЛКМ на ПК), спам реального
+-- выстрела (ShootGun replay) + x3 на клики. Свайпы камеры НЕ стреляют. Без настроек.
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -35,6 +37,14 @@ pcall(function()
     if workspace:FindFirstChild("CociteTPGhost") then
         workspace.CociteTPGhost:Destroy()
     end
+    -- подчистка чамсов от прошлого запуска ESP
+    for _, pl in ipairs(Players:GetPlayers()) do
+        local c = pl.Character
+        if c then
+            local hl = c:FindFirstChild("CociteESP_HL")
+            if hl then hl:Destroy() end
+        end
+    end
     local char = LocalPlayer and LocalPlayer.Character
     if char and char:FindFirstChildOfClass("Humanoid") and Camera then
         if Camera.CameraSubject ~= char:FindFirstChildOfClass("Humanoid") then
@@ -64,7 +74,7 @@ local Settings = {
         FOV = 200,
         ShowFOV = true,
         Tracers = false,
-        HitChance = 100,          -- жёстко 100%
+        HitChance = 100,
         Prediction = 0.135,
         UsePrediction = true,
         WallCheck = false,
@@ -76,7 +86,7 @@ local Settings = {
     },
     RapidFire = {
         Enabled = false,
-        Rate = 0.08,
+        Delay = 0.03,
     },
     Whitelist = {
         Players = {},
@@ -116,9 +126,9 @@ end
 
 local function IsWhitelisted(player)
     if not player then return false end
-    if Settings.Whitelist.Players[player.Name] 
-       or Settings.Whitelist.Players[player.UserId] 
-       or Settings.Whitelist.Players[tostring(player.UserId)] 
+    if Settings.Whitelist.Players[player.Name]
+       or Settings.Whitelist.Players[player.UserId]
+       or Settings.Whitelist.Players[tostring(player.UserId)]
        or Settings.Whitelist.Players[string.lower(player.Name)] then
         return true
     end
@@ -137,9 +147,9 @@ local function IsValidTarget(player)
     local char = player.Character
     local humanoid = char:FindFirstChild("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    
+
     if not humanoid or humanoid.Health <= 0 or not hrp then return false end
-    
+
     local bodyEffects = char:FindFirstChild("BodyEffects")
     if bodyEffects then
         local ko = bodyEffects:FindFirstChild("K.O") or bodyEffects:FindFirstChild("KO")
@@ -147,7 +157,7 @@ local function IsValidTarget(player)
             return false
         end
     end
-    
+
     return true
 end
 
@@ -739,6 +749,41 @@ local flyFloatStroke = Instance.new("UIStroke", FlyFloatBtn)
 flyFloatStroke.Color = Color3.fromRGB(170, 70, 45)
 flyFloatStroke.Thickness = 1.6
 
+local RapidFloatBtn = Instance.new("TextButton", ScreenGui)
+RapidFloatBtn.Name = "CociteRapidFloatBtn"
+RapidFloatBtn.BackgroundColor3 = Color3.fromRGB(26, 14, 20)
+RapidFloatBtn.Position = UDim2.new(0.82, 0, 0.60, 0)
+RapidFloatBtn.Size = UDim2.new(0, 105, 0, 42)
+RapidFloatBtn.Font = Enum.Font.GothamBold
+RapidFloatBtn.Text = "🔥 RAPID: OFF"
+RapidFloatBtn.TextColor3 = Color3.fromRGB(240, 170, 160)
+RapidFloatBtn.TextSize = 12
+RapidFloatBtn.Visible = false
+RapidFloatBtn.Active = true
+RapidFloatBtn.Draggable = true
+Instance.new("UICorner", RapidFloatBtn).CornerRadius = UDim.new(0, 12)
+local rapidFloatStroke = Instance.new("UIStroke", RapidFloatBtn)
+rapidFloatStroke.Color = Color3.fromRGB(160, 60, 50)
+rapidFloatStroke.Thickness = 1.6
+
+-- Круглая кнопка спуска для телефона (держишь = очередь)
+local FireHoldBtn = Instance.new("TextButton", ScreenGui)
+FireHoldBtn.Name = "CociteFireHoldBtn"
+FireHoldBtn.BackgroundColor3 = Color3.fromRGB(170, 30, 40)
+FireHoldBtn.Position = UDim2.new(0.85, 0, 0.68, 0)
+FireHoldBtn.Size = UDim2.new(0, 76, 0, 76)
+FireHoldBtn.Font = Enum.Font.GothamBold
+FireHoldBtn.Text = "🔥"
+FireHoldBtn.TextSize = 30
+FireHoldBtn.TextColor3 = Color3.fromRGB(255, 225, 225)
+FireHoldBtn.Visible = false
+FireHoldBtn.Active = true
+FireHoldBtn.AutoButtonColor = false
+Instance.new("UICorner", FireHoldBtn).CornerRadius = UDim.new(1, 0)
+local fireHoldStroke = Instance.new("UIStroke", FireHoldBtn)
+fireHoldStroke.Color = Color3.fromRGB(255, 90, 90)
+fireHoldStroke.Thickness = 2
+
 local updatingFromFloat = false
 local silentToggleObj = nil
 local flyConnection = nil
@@ -977,20 +1022,21 @@ LoginBtn.MouseButton1Click:Connect(function()
     StatusLabel.Text = "Статус: Проверка ключа..."
     StatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
     task.wait(0.2)
-    
+
     if TextBox.Text == "123" then
         StatusLabel.Text = "Статус: Успешно!"
         StatusLabel.TextColor3 = Color3.fromRGB(80, 255, 140)
         task.wait(0.3)
-        
+
         TweenService:Create(AuthFrame, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
         task.wait(0.4)
         AuthFrame:Destroy()
-        
+
         ToggleButton.Visible = true
         AimFloatBtn.Visible = true
         SilentFloatBtn.Visible = true
         FlyFloatBtn.Visible = true
+        RapidFloatBtn.Visible = true
         MainFrame.Visible = true
         TweenService:Create(MainFrame, TweenInfo.new(0.5), {BackgroundTransparency = 0}):Play()
         TweenService:Create(MainStroke, TweenInfo.new(0.5), {Transparency = 0}):Play()
@@ -1070,8 +1116,8 @@ pcall(function()
             end
 
             if Settings.NoSpread and Settings.NoSpread.Enabled then
-                if (#args == 0) or 
-                   (args[1] == -0.05 and args[2] == 0.05) or 
+                if (#args == 0) or
+                   (args[1] == -0.05 and args[2] == 0.05) or
                    (args[1] == -0.1 and args[2] == 0.1) or
                    (args[1] == -0.1) or
                    (args[1] == -0.05) then
@@ -1098,49 +1144,119 @@ local function CalcRayDirection(origin, targetPos, spread)
     return dir * 1000
 end
 
-local rapidFireLastShot = 0
+-- ===================== RAPID FIRE v2 (держишь = очередь) =====================
+-- Телефон: включи 🔥 RAPID -> появится круглая кнопка 🔥. Держи её = стреляет очередью.
+-- ПК: держи ЛКМ.
+-- Свайпы камеры больше НЕ стреляют (Touch-триггер на весь экран убран).
+-- Работает через повтор реального выстрела (перехват MainEvent -> ShootGun),
+-- поэтому дебаунс игры не режет скорость. Настройки не нужны.
 
-table.insert(_G.CociteConnections, RunService.Heartbeat:Connect(function()
-    if not Settings.RapidFire.Enabled then return end
-    if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then return end
+local RAPID_DELAY = 0.03
+local RAPID_MULT = 2
+
+local rapidHolding = false
+local rapidLoopRunning = false
+local rapidReplaying = false
+local updatingRapidFromUI = false
+local rapidToggleObj = nil
+local rapidHoldTouchId = nil
+
+local lastShootSelf = nil
+local lastShootArgs = nil
+
+local function GetGun()
     local char = LocalPlayer.Character
-    local tool = char and char:FindFirstChildOfClass("Tool")
-    if not tool then return end
-    local now = tick()
-    if now - rapidFireLastShot >= (Settings.RapidFire.Rate or 0.08) then
-        rapidFireLastShot = now
-        pcall(function()
-            tool:Activate()
-        end)
-    end
-end))
+    if not char then return nil end
+    return char:FindFirstChildOfClass("Tool")
+end
 
-local function PatchGunFireRate()
-    if not getgc then return end
-    for _, v in pairs(getgc(true)) do
-        if typeof(v) == "table" then
-            for _, key in ipairs({"FireRate", "fireRate", "Cooldown", "cooldown", "FireSpeed"}) do
-                local val = rawget(v, key)
-                if type(val) == "number" and val > 0 and val < 10 then
-                    pcall(function()
-                        rawset(v, key, 0.03)
-                    end)
-                end
+local function RapidFireLoop()
+    if rapidLoopRunning then return end
+    rapidLoopRunning = true
+    while rapidHolding and Settings.RapidFire.Enabled do
+        local gun = GetGun()
+        if gun then
+            pcall(function() gun:Activate() end)
+            -- спамим последний настоящий выстрел (те же аргументы, что послала игра)
+            if lastShootSelf and lastShootArgs then
+                rapidReplaying = true
+                pcall(function()
+                    lastShootSelf:FireServer(table.unpack(lastShootArgs))
+                end)
+                rapidReplaying = false
             end
         end
+        task.wait(RAPID_DELAY)
+    end
+    rapidLoopRunning = false
+end
+
+local function StartRapid()
+    if not Settings.RapidFire.Enabled or rapidHolding then return end
+    rapidHolding = true
+    FireHoldBtn.BackgroundColor3 = Color3.fromRGB(255, 70, 60)
+    task.spawn(RapidFireLoop)
+end
+
+local function StopRapid()
+    rapidHolding = false
+    FireHoldBtn.BackgroundColor3 = Color3.fromRGB(170, 30, 40)
+end
+
+local function UpdateRapidState(state, fromUI)
+    Settings.RapidFire.Enabled = state
+    rapidHolding = false
+    if state then
+        RapidFloatBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 50)
+        RapidFloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        RapidFloatBtn.Text = "🔥 RAPID: ON"
+        rapidFloatStroke.Color = Color3.fromRGB(255, 110, 90)
+    else
+        RapidFloatBtn.BackgroundColor3 = Color3.fromRGB(26, 14, 20)
+        RapidFloatBtn.TextColor3 = Color3.fromRGB(240, 170, 160)
+        RapidFloatBtn.Text = "🔥 RAPID: OFF"
+        rapidFloatStroke.Color = Color3.fromRGB(160, 60, 50)
+    end
+    FireHoldBtn.Visible = state
+    if not fromUI and rapidToggleObj and rapidToggleObj.Set then
+        updatingRapidFromUI = true
+        rapidToggleObj:Set(state)
+        updatingRapidFromUI = false
     end
 end
 
-task.spawn(function()
-    task.wait(1)
-    PatchGunFireRate()
+RapidFloatBtn.MouseButton1Click:Connect(function()
+    UpdateRapidState(not Settings.RapidFire.Enabled)
 end)
-LocalPlayer.CharacterAdded:Connect(function()
-    task.spawn(function()
-        task.wait(1)
-        PatchGunFireRate()
-    end)
+
+FireHoldBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        rapidHoldTouchId = input.UserData
+        StartRapid()
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+        StartRapid()
+    end
 end)
+
+-- ЛКМ на ПК = спуск
+table.insert(_G.CociteConnections, UserInputService.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and Settings.RapidFire.Enabled then
+        StartRapid()
+    end
+end))
+
+-- Отпускание в любом месте = стоп (multi-touch учитывается по UserData)
+table.insert(_G.CociteConnections, UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        StopRapid()
+    elseif input.UserInputType == Enum.UserInputType.Touch
+        and rapidHoldTouchId ~= nil and input.UserData == rapidHoldTouchId then
+        rapidHoldTouchId = nil
+        StopRapid()
+    end
+end))
+-- =================== END RAPID FIRE v2 ===================
 
 local AimbotFOVCircle = nil
 local SilentFOVCircle = nil
@@ -1187,7 +1303,6 @@ RunService.RenderStepped:Connect(function()
 
     if Settings.SilentAim.Enabled then
         if lockedSilentTarget and IsValidTarget(lockedSilentTarget) then
-            -- sticky: всегда бьём только в locked, FOV игнорируем
             local part = GetCharacterAimPart(lockedSilentTarget.Character, Settings.SilentAim.AimPart)
             if part then
                 if not Settings.SilentAim.WallCheck or IsWallCheckVisible(part, lockedSilentTarget.Character) then
@@ -1263,9 +1378,40 @@ pcall(function()
             local args = {...}
             local self = args[1]
 
-            if not checkcaller() and not isInternalRay and Settings.SilentAim.Enabled and currentSilentAimPos then
-                -- 100% hit — никакого шанса промаха
-                if self == workspace and method == "Raycast" then
+            if not checkcaller() and not isInternalRay then
+                if method == "FireServer" and tostring(self) == "MainEvent" then
+                    local eventArg = tostring(args[2] or args[1] or "")
+                    local eventArgLower = string.lower(eventArg)
+
+                    -- RAPID FIRE v2: ловим настоящий выстрел игрока
+                    if eventArg == "ShootGun" or string.find(eventArgLower, "shoot", 1, true) then
+                        if not rapidReplaying then
+                            lastShootSelf = self
+                            lastShootArgs = {}
+                            for i = 2, #args do
+                                lastShootArgs[i - 1] = args[i]
+                            end
+                        end
+                        -- каждый реальный выстрел -> x3 при включённом Rapid
+                        if Settings.RapidFire.Enabled then
+                            for _ = 1, RAPID_MULT do
+                                pcall(function()
+                                    oldNamecall(self, table.unpack(args, 2))
+                                end)
+                            end
+                        end
+                    elseif Settings.SilentAim.Enabled and currentSilentAimPos then
+                        if eventArg == "UpdateMousePos" or eventArg == "UpdateMousePosI" or string.find(eventArgLower, "mousepos") then
+                            if args[2] == eventArg then
+                                args[3] = currentSilentAimPos
+                            else
+                                args[2] = currentSilentAimPos
+                            end
+                            return oldNamecall(table.unpack(args))
+                        end
+                    end
+                elseif Settings.SilentAim.Enabled and currentSilentAimPos
+                    and self == workspace and method == "Raycast" then
                     if typeof(args[2]) == "Vector3" and typeof(args[3]) == "Vector3" then
                         local origin = args[2]
                         local targetPos = currentSilentAimPos
@@ -1281,16 +1427,6 @@ pcall(function()
                             spreadVal = ((Settings.NoSpread.Amount or 0) / 100) * (isShotgun and 6 or 0)
                         end
                         args[3] = CalcRayDirection(origin, targetPos, spreadVal)
-                        return oldNamecall(table.unpack(args))
-                    end
-                elseif method == "FireServer" and tostring(self) == "MainEvent" then
-                    local eventArg = tostring(args[2] or args[1] or "")
-                    if eventArg == "UpdateMousePos" or eventArg == "UpdateMousePosI" or string.find(string.lower(eventArg), "mousepos") then
-                        if args[2] == eventArg then
-                            args[3] = currentSilentAimPos
-                        else
-                            args[2] = currentSilentAimPos
-                        end
                         return oldNamecall(table.unpack(args))
                     end
                 end
@@ -1343,8 +1479,8 @@ RunService:BindToRenderStep("CociteCamLock", Enum.RenderPriority.Camera.Value + 
                         local targetCF = CFrame.lookAt(camPos, aimPos)
                         if Settings.Aimbot.Smooth then
                             local smoothness = math.clamp(Settings.Aimbot.Smoothness or 0.35, 0.01, 1)
-                            local smoothFactor = math.clamp(1 - math.pow(1 - math.clamp(smoothness, 0.01, 0.99), (dt or 0.016) * 60), 0.01, 1)
-                            cam.CFrame = cam.CFrame:Lerp(targetCF, smoothFactor)
+                            local currentCF = cam.CFrame
+                            cam.CFrame = currentCF:Lerp(targetCF, smoothness)
                         else
                             cam.CFrame = targetCF
                         end
@@ -1355,493 +1491,273 @@ RunService:BindToRenderStep("CociteCamLock", Enum.RenderPriority.Camera.Value + 
     end)
 end)
 
-local function RemoveHighlight(player)
-    if Settings.ESP.ActiveHighlights[player] then
-        Settings.ESP.ActiveHighlights[player]:Destroy()
-        Settings.ESP.ActiveHighlights[player] = nil
-    end
-end
+-- ===================== СТРАНИЦЫ МЕНЮ =====================
 
-local function ClearESP()
-    for _, objList in pairs(Settings.ESP.ActiveDrawings) do
-        for _, obj in pairs(objList) do
-            if obj then obj:Remove() end
-        end
-    end
-    Settings.ESP.ActiveDrawings = {}
-
-    for player, _ in pairs(Settings.ESP.ActiveHighlights) do
-        RemoveHighlight(player)
-    end
-end
-
-Players.PlayerRemoving:Connect(function(player)
-    if Settings.ESP.ActiveDrawings[player] then
-        for _, obj in pairs(Settings.ESP.ActiveDrawings[player]) do
-            if obj then obj:Remove() end
-        end
-        Settings.ESP.ActiveDrawings[player] = nil
-    end
-    RemoveHighlight(player)
-end)
-
-RunService.RenderStepped:Connect(function()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if Settings.ESP.Enabled and IsValidTarget(player) then
-            local char = player.Character
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-            
-            if not Settings.ESP.ActiveDrawings[player] then
-                local box = Drawing.new("Square")
-                box.Visible = false
-                box.Color = Color3.fromRGB(180, 50, 255)
-                box.Thickness = 1.5
-                box.Filled = false
-                
-                local nameText = Drawing.new("Text")
-                nameText.Visible = false
-                nameText.Color = Color3.fromRGB(255, 255, 255)
-                nameText.Size = 13
-                nameText.Center = true
-                nameText.Outline = true
-                
-                Settings.ESP.ActiveDrawings[player] = {Box = box, Name = nameText}
-            end
-            
-            local visuals = Settings.ESP.ActiveDrawings[player]
-            local box, nameText = visuals.Box, visuals.Name
-            
-            if onScreen then
-                local scaleFactor = 300 / pos.Z
-                local size = Vector2.new(2, 3) * scaleFactor
-                box.Size = size
-                box.Position = Vector2.new(pos.X - size.X / 2, pos.Y - size.Y / 2)
-                box.Visible = Settings.ESP.Boxes
-                
-                nameText.Text = player.Name
-                nameText.Position = Vector2.new(pos.X, pos.Y - size.Y / 2 - 18)
-                nameText.Visible = Settings.ESP.Names
-            else
-                box.Visible = false
-                nameText.Visible = false
-            end
-
-            if Settings.ESP.Chams then
-                if not Settings.ESP.ActiveHighlights[player] or Settings.ESP.ActiveHighlights[player].Parent ~= char then
-                    RemoveHighlight(player)
-                    local hl = Instance.new("Highlight")
-                    hl.Name = "CociteChams"
-                    hl.FillColor = Color3.fromRGB(150, 40, 255)
-                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    hl.FillTransparency = 0.4
-                    hl.OutlineTransparency = 0
-                    hl.Adornee = char
-                    hl.Parent = char
-                    Settings.ESP.ActiveHighlights[player] = hl
-                else
-                    Settings.ESP.ActiveHighlights[player].Enabled = true
-                end
-            else
-                RemoveHighlight(player)
-            end
-        else
-            if Settings.ESP.ActiveDrawings[player] then
-                Settings.ESP.ActiveDrawings[player].Box.Visible = false
-                Settings.ESP.ActiveDrawings[player].Name.Visible = false
-            end
-            RemoveHighlight(player)
-        end
-    end
-end)
-
--- Populate AIMBOT Page
-CreateSection(AimbotPage, "CAMERA AIMBOT (REGULAR AIM / CAMLOCK)")
-
-aimbotToggleObj = CreateToggle(AimbotPage, "Aimbot Master", Settings.Aimbot.Enabled, function(state)
+-- AIMBOT
+CreateSection(AimbotPage, "aimbot")
+aimbotToggleObj = CreateToggle(AimbotPage, "🎯 CAMLOCK AIMBOT", Settings.Aimbot.Enabled, function(state)
     Settings.Aimbot.Enabled = state
-    AimFloatBtn.Visible = state
-    if not state then
-        UpdateAimState(false)
-    end
 end)
-
-CreateCycle(AimbotPage, "Aim Part", {"Head", "HumanoidRootPart", "UpperTorso", "Random"}, 1, function(val)
+CreateSlider(AimbotPage, "AIMBOT FOV", 30, 500, Settings.Aimbot.FOV, "px", 5, function(v)
+    Settings.Aimbot.FOV = v
+end)
+CreateToggle(AimbotPage, "SMOOTH AIM", Settings.Aimbot.Smooth, function(state)
+    Settings.Aimbot.Smooth = state
+end)
+CreateSlider(AimbotPage, "SMOOTHNESS", 0.05, 1, Settings.Aimbot.Smoothness, "", 0.05, function(v)
+    Settings.Aimbot.Smoothness = v
+end)
+CreateCycle(AimbotPage, "AIM PART", {"Head", "UpperTorso", "HumanoidRootPart", "Random"}, 1, function(val)
     Settings.Aimbot.AimPart = val
 end)
 
-CreateSlider(AimbotPage, "Aimbot FOV", 30, 500, Settings.Aimbot.FOV, "px", 10, function(val)
-    Settings.Aimbot.FOV = val
+CreateSection(AimbotPage, "silent aim")
+silentToggleObj = CreateToggle(AimbotPage, "🔮 SILENT AIM", Settings.SilentAim.Enabled, function(state)
+    UpdateSilentAimState(state, true)
 end)
-
-CreateToggle(AimbotPage, "Show Aimbot FOV", Settings.Aimbot.ShowFOV, function(state)
-    Settings.Aimbot.ShowFOV = state
+CreateSlider(AimbotPage, "SILENT FOV", 30, 500, Settings.SilentAim.FOV, "px", 5, function(v)
+    Settings.SilentAim.FOV = v
 end)
-
-CreateToggle(AimbotPage, "Smooth Tracking", Settings.Aimbot.Smooth, function(state)
-    Settings.Aimbot.Smooth = state
-end)
-
-CreateSlider(AimbotPage, "Smooth Speed", 0.05, 1, Settings.Aimbot.Smoothness, "", 0.05, function(val)
-    Settings.Aimbot.Smoothness = val
-end)
-
-CreateToggle(AimbotPage, "Aimbot Prediction", Settings.Aimbot.UsePrediction, function(state)
-    Settings.Aimbot.UsePrediction = state
-end)
-
-CreateSlider(AimbotPage, "Prediction Val", 0.05, 0.3, Settings.Aimbot.Prediction, "s", 0.005, function(val)
-    Settings.Aimbot.Prediction = val
-end)
-
-CreateSection(AimbotPage, "SILENT AIM (100% LOCKED ONLY)")
-
-silentToggleObj = CreateToggle(AimbotPage, "Silent Aim Master", Settings.SilentAim.Enabled, function(state)
-    if not updatingFromFloat then
-        UpdateSilentAimState(state, true)
-    end
-end)
-
-CreateCycle(AimbotPage, "Silent Part", {"HumanoidRootPart", "Head", "UpperTorso", "Random"}, 1, function(val)
-    Settings.SilentAim.AimPart = val
-end)
-
-CreateSlider(AimbotPage, "Silent FOV", 30, 500, Settings.SilentAim.FOV, "px", 10, function(val)
-    Settings.SilentAim.FOV = val
-end)
-
-CreateToggle(AimbotPage, "Show Silent FOV", Settings.SilentAim.ShowFOV, function(state)
-    Settings.SilentAim.ShowFOV = state
-end)
-
-CreateToggle(AimbotPage, "Silent Tracers", Settings.SilentAim.Tracers, function(state)
+CreateToggle(AimbotPage, "SILENT TRACERS", Settings.SilentAim.Tracers, function(state)
     Settings.SilentAim.Tracers = state
 end)
-
--- HitChance убран из UI, всегда 100%
-
-CreateToggle(AimbotPage, "Silent Prediction", Settings.SilentAim.UsePrediction, function(state)
-    Settings.SilentAim.UsePrediction = state
-end)
-
-CreateSlider(AimbotPage, "Prediction Amount", 0.05, 0.3, Settings.SilentAim.Prediction, "s", 0.005, function(val)
-    Settings.SilentAim.Prediction = val
-end)
-
-CreateToggle(AimbotPage, "Wall Check", Settings.SilentAim.WallCheck, function(state)
+CreateToggle(AimbotPage, "WALL CHECK", Settings.SilentAim.WallCheck, function(state)
     Settings.SilentAim.WallCheck = state
 end)
-
-CreateToggle(AimbotPage, "Sticky Target (Close Combat Fix)", Settings.SilentAim.StickyTarget, function(state)
-    Settings.SilentAim.StickyTarget = state
+CreateCycle(AimbotPage, "SILENT PART", {"HumanoidRootPart", "Head", "Random"}, 1, function(val)
+    Settings.SilentAim.AimPart = val
 end)
-
-CreateSection(AimbotPage, "SPREAD MODIFIER (NO SPREAD)")
-
-CreateToggle(AimbotPage, "No Spread", Settings.NoSpread.Enabled, function(state)
+CreateToggle(AimbotPage, "NO SPREAD", Settings.NoSpread.Enabled, function(state)
     Settings.NoSpread.Enabled = state
 end)
 
-CreateSlider(AimbotPage, "Spread Amount", 0, 100, Settings.NoSpread.Amount, "%", 5, function(val)
-    Settings.NoSpread.Amount = val
-end)
-
-CreateSection(AimbotPage, "RAPID FIRE")
-
-CreateToggle(AimbotPage, "Rapid Fire", Settings.RapidFire.Enabled, function(state)
-    Settings.RapidFire.Enabled = state
-end)
-
-CreateSlider(AimbotPage, "Fire Rate Delay", 0.03, 0.5, Settings.RapidFire.Rate, "s", 0.01, function(val)
-    Settings.RapidFire.Rate = val
-end)
-
 -- ESP
-CreateSection(ESPPage, "ESP VISUALS")
-
-CreateToggle(ESPPage, "Master ESP", false, function(state)
+CreateSection(ESPPage, "esp")
+CreateToggle(ESPPage, "👁 ESP MASTER", Settings.ESP.Enabled, function(state)
     Settings.ESP.Enabled = state
-    if not state then
-        ClearESP()
-    end
 end)
-
-CreateToggle(ESPPage, "Box ESP", true, function(state)
+CreateToggle(ESPPage, "BOXES", Settings.ESP.Boxes, function(state)
     Settings.ESP.Boxes = state
 end)
-
-CreateToggle(ESPPage, "Chams ESP", true, function(state)
+CreateToggle(ESPPage, "CHAMS", Settings.ESP.Chams, function(state)
     Settings.ESP.Chams = state
 end)
-
-CreateToggle(ESPPage, "Name ESP", true, function(state)
+CreateToggle(ESPPage, "NAMES", Settings.ESP.Names, function(state)
     Settings.ESP.Names = state
 end)
 
 -- WHITELIST
-CreateSection(WhitelistPage, "GLOBAL FILTERS")
+CreateSection(WhitelistPage, "whitelist")
+local wlFrame = Instance.new("Frame", WhitelistPage)
+wlFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
+wlFrame.Size = UDim2.new(1, 0, 0, 34)
+Instance.new("UICorner", wlFrame).CornerRadius = UDim.new(0, 10)
+local wlStroke = Instance.new("UIStroke", wlFrame)
+wlStroke.Color = Color3.fromRGB(100, 45, 170)
+wlStroke.Thickness = 1.3
 
-CreateToggle(WhitelistPage, "Whitelist Friends", Settings.Whitelist.Friends, function(state)
+local wlBox = Instance.new("TextBox", wlFrame)
+wlBox.BackgroundTransparency = 1
+wlBox.Position = UDim2.new(0, 10, 0, 0)
+wlBox.Size = UDim2.new(1, -20, 1, 0)
+wlBox.Font = Enum.Font.GothamSemibold
+wlBox.PlaceholderText = "ник игрока..."
+wlBox.Text = ""
+wlBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+wlBox.PlaceholderColor3 = Color3.fromRGB(100, 90, 120)
+wlBox.TextSize = 11
+
+CreateButton(WhitelistPage, "➕ ДОБАВИТЬ В ВАЙТЛИСТ", function()
+    local n = wlBox.Text
+    if n and n ~= "" then
+        Settings.Whitelist.Players[n] = true
+        wlBox.Text = ""
+    end
+end)
+
+CreateButton(WhitelistPage, "➖ УБРАТЬ ИЗ ВАЙТЛИСТА", function()
+    local n = wlBox.Text
+    if n and n ~= "" then
+        Settings.Whitelist.Players[n] = nil
+        Settings.Whitelist.Players[string.lower(n)] = nil
+        wlBox.Text = ""
+    end
+end)
+
+CreateToggle(WhitelistPage, "IGNORE FRIENDS", Settings.Whitelist.Friends, function(state)
     Settings.Whitelist.Friends = state
 end)
 
-CreateToggle(WhitelistPage, "Whitelist Team", Settings.Whitelist.Team, function(state)
+CreateToggle(WhitelistPage, "IGNORE TEAM", Settings.Whitelist.Team, function(state)
     Settings.Whitelist.Team = state
 end)
 
-CreateSection(WhitelistPage, "ADD PLAYER TO WHITELIST")
-
-local serverPickerFrame = Instance.new("Frame", WhitelistPage)
-serverPickerFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
-serverPickerFrame.Size = UDim2.new(1, 0, 0, 34)
-Instance.new("UICorner", serverPickerFrame).CornerRadius = UDim.new(0, 10)
-local spStroke = Instance.new("UIStroke", serverPickerFrame)
-spStroke.Color = Color3.fromRGB(100, 45, 170)
-spStroke.Thickness = 1.3
-
-local selectedPlayerName = ""
-local serverPlayers = {}
-
-local function RefreshServerPlayers()
-    serverPlayers = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(serverPlayers, p.Name)
-        end
-    end
-    if #serverPlayers == 0 then
-        table.insert(serverPlayers, "None in server")
-        selectedPlayerName = ""
-    else
-        if not table.find(serverPlayers, selectedPlayerName) then
-            selectedPlayerName = serverPlayers[1]
-        end
-    end
-end
-
-RefreshServerPlayers()
-
-local selectBtn = Instance.new("TextButton", serverPickerFrame)
-selectBtn.BackgroundTransparency = 1
-selectBtn.Position = UDim2.new(0, 10, 0, 0)
-selectBtn.Size = UDim2.new(1, -70, 1, 0)
-selectBtn.Font = Enum.Font.GothamSemibold
-selectBtn.Text = "Pick: " .. (selectedPlayerName ~= "" and selectedPlayerName or "None")
-selectBtn.TextColor3 = Color3.fromRGB(210, 190, 255)
-selectBtn.TextSize = 11
-selectBtn.TextXAlignment = Enum.TextXAlignment.Left
-
-local curIdx = 1
-selectBtn.MouseButton1Click:Connect(function()
-    RefreshServerPlayers()
-    if #serverPlayers > 0 and serverPlayers[1] ~= "None in server" then
-        curIdx = curIdx + 1
-        if curIdx > #serverPlayers then curIdx = 1 end
-        selectedPlayerName = serverPlayers[curIdx]
-        selectBtn.Text = "Pick: " .. selectedPlayerName
-    else
-        selectBtn.Text = "Pick: None in server"
-        selectedPlayerName = ""
-    end
-end)
-
-local addPickerBtn = Instance.new("TextButton", serverPickerFrame)
-addPickerBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 210)
-addPickerBtn.Position = UDim2.new(1, -56, 0.5, -12)
-addPickerBtn.Size = UDim2.new(0, 48, 0, 24)
-addPickerBtn.Font = Enum.Font.GothamBold
-addPickerBtn.Text = "+ ADD"
-addPickerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-addPickerBtn.TextSize = 10
-Instance.new("UICorner", addPickerBtn).CornerRadius = UDim.new(0, 6)
-
-local manualInputFrame = Instance.new("Frame", WhitelistPage)
-manualInputFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
-manualInputFrame.Size = UDim2.new(1, 0, 0, 34)
-Instance.new("UICorner", manualInputFrame).CornerRadius = UDim.new(0, 10)
-local miStroke = Instance.new("UIStroke", manualInputFrame)
-miStroke.Color = Color3.fromRGB(100, 45, 170)
-miStroke.Thickness = 1.3
-
-local manualBox = Instance.new("TextBox", manualInputFrame)
-manualBox.BackgroundTransparency = 1
-manualBox.Position = UDim2.new(0, 10, 0, 0)
-manualBox.Size = UDim2.new(1, -70, 1, 0)
-manualBox.Font = Enum.Font.Gotham
-manualBox.PlaceholderText = "Type player name..."
-manualBox.PlaceholderColor3 = Color3.fromRGB(120, 100, 140)
-manualBox.Text = ""
-manualBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-manualBox.TextSize = 11
-manualBox.TextXAlignment = Enum.TextXAlignment.Left
-
-local addManualBtn = Instance.new("TextButton", manualInputFrame)
-addManualBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 210)
-addManualBtn.Position = UDim2.new(1, -56, 0.5, -12)
-addManualBtn.Size = UDim2.new(0, 48, 0, 24)
-addManualBtn.Font = Enum.Font.GothamBold
-addManualBtn.Text = "+ ADD"
-addManualBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-addManualBtn.TextSize = 10
-Instance.new("UICorner", addManualBtn).CornerRadius = UDim.new(0, 6)
-
-CreateSection(WhitelistPage, "WHITELISTED PLAYERS")
-
-local listContainer = Instance.new("Frame", WhitelistPage)
-listContainer.BackgroundTransparency = 1
-listContainer.Size = UDim2.new(1, 0, 0, 0)
-listContainer.AutomaticSize = Enum.AutomaticSize.Y
-
-local listLayout = Instance.new("UIListLayout", listContainer)
-listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-listLayout.Padding = UDim.new(0, 4)
-
-local function UpdateWhitelistUI()
-    for _, child in ipairs(listContainer:GetChildren()) do
-        if child:IsA("Frame") or child:IsA("TextLabel") or child:IsA("TextButton") then
-            child:Destroy()
-        end
-    end
-
-    local count = 0
-    for name, _ in pairs(Settings.Whitelist.Players) do
-        count = count + 1
-        local itemFrame = Instance.new("Frame", listContainer)
-        itemFrame.BackgroundColor3 = Color3.fromRGB(22, 16, 34)
-        itemFrame.Size = UDim2.new(1, 0, 0, 28)
-        Instance.new("UICorner", itemFrame).CornerRadius = UDim.new(0, 8)
-        local itemStroke = Instance.new("UIStroke", itemFrame)
-        itemStroke.Color = Color3.fromRGB(80, 40, 140)
-        itemStroke.Thickness = 1
-
-        local nameLabel = Instance.new("TextLabel", itemFrame)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Position = UDim2.new(0, 10, 0, 0)
-        nameLabel.Size = UDim2.new(1, -40, 1, 0)
-        nameLabel.Font = Enum.Font.GothamSemibold
-        nameLabel.Text = "🛡️ " .. tostring(name)
-        nameLabel.TextColor3 = Color3.fromRGB(220, 200, 255)
-        nameLabel.TextSize = 11
-        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-        local delBtn = Instance.new("TextButton", itemFrame)
-        delBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 60)
-        delBtn.Position = UDim2.new(1, -26, 0.5, -9)
-        delBtn.Size = UDim2.new(0, 18, 0, 18)
-        delBtn.Font = Enum.Font.GothamBold
-        delBtn.Text = "✕"
-        delBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        delBtn.TextSize = 10
-        Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 4)
-
-        delBtn.MouseButton1Click:Connect(function()
-            Settings.Whitelist.Players[name] = nil
-            Settings.Whitelist.Players[string.lower(name)] = nil
-            UpdateWhitelistUI()
-        end)
-    end
-
-    if count == 0 then
-        local emptyLbl = Instance.new("TextLabel", listContainer)
-        emptyLbl.BackgroundTransparency = 1
-        emptyLbl.Size = UDim2.new(1, 0, 0, 24)
-        emptyLbl.Font = Enum.Font.Gotham
-        emptyLbl.Text = "No custom players whitelisted"
-        emptyLbl.TextColor3 = Color3.fromRGB(120, 110, 140)
-        emptyLbl.TextSize = 11
-    end
-end
-
-addPickerBtn.MouseButton1Click:Connect(function()
-    if selectedPlayerName and selectedPlayerName ~= "" and selectedPlayerName ~= "None in server" then
-        Settings.Whitelist.Players[selectedPlayerName] = true
-        Settings.Whitelist.Players[string.lower(selectedPlayerName)] = true
-        UpdateWhitelistUI()
-    end
-end)
-
-addManualBtn.MouseButton1Click:Connect(function()
-    local text = manualBox.Text:gsub("%s+", "")
-    if text ~= "" then
-        Settings.Whitelist.Players[text] = true
-        Settings.Whitelist.Players[string.lower(text)] = true
-        manualBox.Text = ""
-        UpdateWhitelistUI()
-    end
-end)
-
-local clearAllBtn = Instance.new("TextButton", WhitelistPage)
-clearAllBtn.BackgroundColor3 = Color3.fromRGB(34, 16, 26)
-clearAllBtn.Size = UDim2.new(1, 0, 0, 28)
-clearAllBtn.Font = Enum.Font.GothamSemibold
-clearAllBtn.Text = "🗑️ Clear Whitelist"
-clearAllBtn.TextColor3 = Color3.fromRGB(255, 120, 130)
-clearAllBtn.TextSize = 11
-Instance.new("UICorner", clearAllBtn).CornerRadius = UDim.new(0, 8)
-local caStroke = Instance.new("UIStroke", clearAllBtn)
-caStroke.Color = Color3.fromRGB(130, 35, 45)
-caStroke.Thickness = 1
-
-clearAllBtn.MouseButton1Click:Connect(function()
-    Settings.Whitelist.Players = {}
-    UpdateWhitelistUI()
-end)
-
-UpdateWhitelistUI()
-
 -- MISC
-CreateSection(MiscPage, "FLY (FLIGHT SYSTEM)")
-
-flyToggleObj = CreateToggle(MiscPage, "Fly Master", Settings.Misc.Fly, function(state)
+CreateSection(MiscPage, "movement")
+flyToggleObj = CreateToggle(MiscPage, "🚀 FLY", Settings.Misc.Fly, function(state)
     UpdateFlyState(state, true)
 end)
-
-CreateSlider(MiscPage, "Fly Speed", 10, 200, Settings.Misc.FlySpeed, " studs/s", 5, function(val)
-    Settings.Misc.FlySpeed = val
+CreateSlider(MiscPage, "FLY SPEED", 10, 200, Settings.Misc.FlySpeed, "", 5, function(v)
+    Settings.Misc.FlySpeed = v
 end)
 
-CreateSection(MiscPage, "VCLIP (VERTICAL TELEPORT)")
-
-CreateSlider(MiscPage, "VClip Distance", 1, 50, Settings.Misc.VClipDistance, " st", 1, function(val)
-    Settings.Misc.VClipDistance = val
-end)
-
-CreateButton(MiscPage, "▲ VClip Up (Clip Above / Roof)", function()
+CreateSection(MiscPage, "vertical clip")
+CreateButton(MiscPage, "⬆ VCLIP UP (B)", function()
     DoVClip(Settings.Misc.VClipDistance)
 end)
-
-CreateButton(MiscPage, "▼ VClip Down (Clip Below / Floor)", function()
+CreateButton(MiscPage, "⬇ VCLIP DOWN (V)", function()
     DoVClip(-Settings.Misc.VClipDistance)
 end)
+CreateSlider(MiscPage, "VCLIP DISTANCE", 1, 50, Settings.Misc.VClipDistance, "", 1, function(v)
+    Settings.Misc.VClipDistance = v
+end)
 
-CreateSection(MiscPage, "HOTKEYS (PC)")
-local helpFrame = Instance.new("Frame", MiscPage)
-helpFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
-helpFrame.Size = UDim2.new(1, 0, 0, 84)
-Instance.new("UICorner", helpFrame).CornerRadius = UDim.new(0, 10)
-local hfStroke = Instance.new("UIStroke", helpFrame)
-hfStroke.Color = Color3.fromRGB(100, 45, 170)
-hfStroke.Thickness = 1.3
+CreateSection(MiscPage, "combat")
+rapidToggleObj = CreateToggle(MiscPage, "🔥 RAPID FIRE", Settings.RapidFire.Enabled, function(state)
+    if not updatingRapidFromUI then
+        UpdateRapidState(state, true)
+    end
+end)
 
-local hfLayout = Instance.new("UIListLayout", helpFrame)
-hfLayout.SortOrder = Enum.SortOrder.LayoutOrder
-hfLayout.Padding = UDim.new(0, 2)
-local hfPad = Instance.new("UIPadding", helpFrame)
-hfPad.PaddingLeft = UDim.new(0, 10)
-hfPad.PaddingTop = UDim.new(0, 6)
+-- ===================== ESP ENGINE =====================
+local espObjects = {}
 
-local function AddKeyHelp(txt)
-    local lbl = Instance.new("TextLabel", helpFrame)
-    lbl.BackgroundTransparency = 1
-    lbl.Size = UDim2.new(1, -20, 0, 16)
-    lbl.Font = Enum.Font.GothamSemibold
-    lbl.Text = txt
-    lbl.TextColor3 = Color3.fromRGB(200, 180, 230)
-    lbl.TextSize = 11
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
+local function removeESPFor(player)
+    local obj = espObjects[player]
+    if obj then
+        if obj.highlight then pcall(function() obj.highlight:Destroy() end) end
+        if obj.box then pcall(function() obj.box:Remove() end) end
+        if obj.name then pcall(function() obj.name:Remove() end) end
+        espObjects[player] = nil
+    end
 end
 
-AddKeyHelp("• [X] - Toggle Fly On / Off")
-AddKeyHelp("• [B] - VClip Up (through ceiling)")
-AddKeyHelp("• [V] - VClip Down (through floor)")
-AddKeyHelp("• [Q] - Toggle Regular Aimbot (CamLock)")
+local function clearAllESP()
+    for player in pairs(espObjects) do
+        removeESPFor(player)
+    end
+end
+
+table.insert(_G.CociteConnections, Players.PlayerRemoving:Connect(removeESPFor))
+
+table.insert(_G.CociteConnections, RunService.RenderStepped:Connect(function()
+    if not ScreenGui.Parent then return end
+    if not Settings.ESP.Enabled then
+        clearAllESP()
+        return
+    end
+
+    local cam = workspace.CurrentCamera or Camera
+    if not cam then return end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local obj = espObjects[player]
+            if not obj then
+                espObjects[player] = {}
+                if Drawing and Drawing.new then
+                    local box = Drawing.new("Square")
+                    box.Thickness = 1.5
+                    box.Filled = false
+                    box.Color = Color3.fromRGB(200, 90, 255)
+                    box.Visible = false
+                    local nameTxt = Drawing.new("Text")
+                    nameTxt.Size = 13
+                    nameTxt.Center = true
+                    nameTxt.Outline = true
+                    nameTxt.Color = Color3.fromRGB(235, 205, 255)
+                    nameTxt.Visible = false
+                    espObjects[player].box = box
+                    espObjects[player].name = nameTxt
+                end
+                obj = espObjects[player]
+            end
+
+            local char = player.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local alive = char and hum and hum.Health > 0 and hrp
+
+            if alive and IsValidTarget(player) then
+                if Settings.ESP.Chams then
+                    local hl = obj.highlight
+                    if not hl or hl.Parent ~= char then
+                        if hl then pcall(function() hl:Destroy() end) end
+                        local newHL = Instance.new("Highlight")
+                        newHL.Name = "CociteESP_HL"
+                        newHL.FillColor = Color3.fromRGB(120, 30, 210)
+                        newHL.OutlineColor = Color3.fromRGB(235, 160, 255)
+                        newHL.FillTransparency = 0.6
+                        newHL.OutlineTransparency = 0
+                        newHL.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        newHL.Parent = char
+                        obj.highlight = newHL
+                    end
+                elseif obj.highlight then
+                    pcall(function() obj.highlight:Destroy() end)
+                    obj.highlight = nil
+                end
+
+                local rootPos, onScreen = cam:WorldToViewportPoint(hrp.Position)
+                if onScreen and rootPos.Z > 0 then
+                    local cf, sz = char:GetBoundingBox()
+                    local minX, minY = math.huge, math.huge
+                    local maxX, maxY = -math.huge, -math.huge
+                    local ok = true
+                    for x = -1, 1, 2 do
+                        for y = -1, 1, 2 do
+                            for z = -1, 1, 2 do
+                                local world = (cf * CFrame.new(sz.X / 2 * x, sz.Y / 2 * y, sz.Z / 2 * z)).Position
+                                local sp, vis = cam:WorldToViewportPoint(world)
+                                if vis and sp.Z > 0 then
+                                    if sp.X < minX then minX = sp.X end
+                                    if sp.X > maxX then maxX = sp.X end
+                                    if sp.Y < minY then minY = sp.Y end
+                                    if sp.Y > maxY then maxY = sp.Y end
+                                else
+                                    ok = false
+                                end
+                            end
+                        end
+                    end
+
+                    if ok then
+                        if obj.box then
+                            if Settings.ESP.Boxes then
+                                obj.box.Size = Vector2.new(maxX - minX, maxY - minY)
+                                obj.box.Position = Vector2.new(minX, minY)
+                                obj.box.Visible = true
+                            else
+                                obj.box.Visible = false
+                            end
+                        end
+                        if obj.name then
+                            if Settings.ESP.Names then
+                                obj.name.Text = player.Name .. " [" .. math.floor(hum.Health) .. "]"
+                                obj.name.Position = Vector2.new((minX + maxX) / 2, minY - 16)
+                                obj.name.Visible = true
+                            else
+                                obj.name.Visible = false
+                            end
+                        end
+                    else
+                        if obj.box then obj.box.Visible = false end
+                        if obj.name then obj.name.Visible = false end
+                    end
+                else
+                    if obj.box then obj.box.Visible = false end
+                    if obj.name then obj.name.Visible = false end
+                end
+            else
+                if obj.highlight then
+                    pcall(function() obj.highlight:Destroy() end)
+                    obj.highlight = nil
+                end
+                if obj.box then obj.box.Visible = false end
+                if obj.name then obj.name.Visible = false end
+            end
+        end
+    end
+end))
+
+print("[COCITESCRIPT] loaded | RAPID FIRE v2: держи 🔥 (телефон) или ЛКМ (ПК)")
