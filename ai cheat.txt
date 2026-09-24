@@ -1,6 +1,6 @@
 -- COCITESCRIPT | Da Hood & Flame Hood Edition (Clean Startup & Anti-Freeze)
--- FIXED: Silent Aim 100% только в locked + BulletTP удалён + меню чуть прокачано
--- RAPID FIRE v3: hold-to-shoot — Activate + виртуальный клик + мгновенный хук кулдауна (ПК + телефон)
+-- FIXED: Silent Aim 100% только в locked + BulletTP удалён + меню прокачано
+-- TARGET STRAFE: интегрирован во вкладку Aimbot в самом низу + синхронизация с Silent Aim
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -71,19 +71,16 @@ local Settings = {
         WallCheck = false,
         StickyTarget = true,
     },
+    TargetStrafe = {
+        Enabled = false,
+        Mode = "Orbit", -- "Orbit", "Above", "Random"
+        Speed = 25,
+        Radius = 15,
+        Height = 10,
+    },
     NoSpread = {
         Enabled = true,
         Amount = 0,
-    },
-    RapidFire = {
-        Enabled = true,         -- включён сразу: держишь ЛКМ -> стреляет
-        Delay = 0.01,           -- 0 = каждый кадр, 0.01 = 100/с
-        Mode = "Both",          -- Both | VClick | Activate
-        ZeroCooldown = true,    -- ShootingCooldown / FireRate -> 0 (мгновенный хук)
-        UseRemote = false,      -- выстрел через remote внутри тулзы (рискованно)
-        InfAmmo = false,        -- локальные патроны не кончаются
-        RequireAmmo = true,     -- не стрелять при 0 патронов
-        ShowStatus = true,      -- статус-лейбл внизу экрана
     },
     Whitelist = {
         Players = {},
@@ -692,50 +689,6 @@ Tabs["AIMBOT"].Visible = true
 TabButtons["AIMBOT"].BackgroundColor3 = Color3.fromRGB(120, 30, 210)
 TabButtons["AIMBOT"].TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- ===== RAPID FIRE UI (в самом верху вкладки AIMBOT, чтобы было видно сразу) =====
-CreateSection(AimbotPage, "RAPID FIRE — HOLD TO SHOOT")
-
-CreateToggle(AimbotPage, "Rapid Fire", Settings.RapidFire.Enabled, function(state)
-    Settings.RapidFire.Enabled = state
-    if not state and _G.CociteRapidFire then
-        _G.CociteRapidFire.Stop()
-    end
-end)
-
-CreateCycle(AimbotPage, "Fire Mode", { "Both", "VClick", "Activate" }, 1, function(val)
-    Settings.RapidFire.Mode = val
-end)
-
-CreateSlider(AimbotPage, "Rapid Fire Delay", 0, 0.2, Settings.RapidFire.Delay, "s", 0.01, function(val)
-    Settings.RapidFire.Delay = val
-end)
-
-CreateToggle(AimbotPage, "Zero Shooting Cooldown", Settings.RapidFire.ZeroCooldown, function(state)
-    Settings.RapidFire.ZeroCooldown = state
-end)
-
-CreateToggle(AimbotPage, "Infinite Ammo (local)", Settings.RapidFire.InfAmmo, function(state)
-    Settings.RapidFire.InfAmmo = state
-end)
-
-CreateToggle(AimbotPage, "Require Ammo", Settings.RapidFire.RequireAmmo, function(state)
-    Settings.RapidFire.RequireAmmo = state
-end)
-
-CreateToggle(AimbotPage, "Remote Shot (risky, off)", Settings.RapidFire.UseRemote, function(state)
-    Settings.RapidFire.UseRemote = state
-end)
-
-CreateToggle(AimbotPage, "Show Status Label", Settings.RapidFire.ShowStatus, function(state)
-    Settings.RapidFire.ShowStatus = state
-end)
-
-CreateButton(AimbotPage, "▶ TEST FIRE (проверить сейчас)", function()
-    if _G.CociteRapidFire then
-        _G.CociteRapidFire.Test()
-    end
-end)
-
 local AimActive = false
 local aimbotToggleObj = nil
 
@@ -1084,6 +1037,9 @@ local currentSilentTarget = nil
 local currentSilentTargetPart = nil
 local currentSilentAimPos = nil
 
+local targetStrafeTarget = nil
+local strafeAngle = 0
+
 local equippedToolName = nil
 
 local function OnCharacterAdded(char)
@@ -1149,397 +1105,48 @@ local function CalcRayDirection(origin, targetPos, spread)
     return dir * 1000
 end
 
--- ===================== RAPID FIRE v3 (hold to shoot fast) =====================
--- Что зафиксировано против v2:
---   • 3 независимых пути выстрела: Tool:Activate() + ВИРТУАЛЬНЫЙ КЛИК (VirtualInputManager)
---     + executor-клик (mouse1click). Если игра игнорит Activate — виртуальный клик
---     проходит как настоящий клик мыши, его ловит любой gun-скрипт.
---   • состояние "зажато" читается напрямую через IsMouseButtonPressed (а не флагами
---     событий). Флаги ломались на мобиле и от синтетических кликов.
---   • на ShootingCooldown вешается .Changed-хук: значение обнуляется МОМЕНТАЛЬНО
---     при любой записи, а не раз в кадр. Это и есть настоящий rapid fire.
---   • статус-лейбл внизу экрана: видно нашло ли пушку, сколько выстрелов/сек и ошибку.
---   • кнопка TEST FIRE в меню — проверить выстрел, не заходя в бой.
+-- ===================== TARGET STRAFE LOGIC =====================
+RunService.RenderStepped:Connect(function(dt)
+    local ts = Settings.TargetStrafe
+    if not ts.Enabled or not targetStrafeTarget or not targetStrafeTarget.Character then return end
 
-local MODE_ACTIVATE = "Activate"
-local MODE_VCLICK = "VClick"
-local MODE_BOTH = "Both"
-
-local rapidAccum = 0
-local rapidShots = 0
-local rapidPrevShots = 0
-local rapidRateShow = 0
-local rapidLastError = "-"
-local rapidLastNote = "-"
-local TouchHeldCount = 0
-local hookedCooldowns = {}
-local cooldownHookConns = {}
-local rapidStatusLbl = nil
-local rapidStatusStroke = nil
-
-local COOLDOWN_NAMES = {
-    "ShootingCooldown", "FireRate", "Cooldown", "FireDelay",
-    "ShootCooldown", "Rate", "ReloadCooldown", "ShootDelay",
-}
-
-local VirtualInputManager = nil
-pcall(function()
-    VirtualInputManager = game:GetService("VirtualInputManager")
-end)
-
---[[ Похож ли Tool на пушку. Da Hood / Flame Hood: Ammo + ShootingCooldown.
-     Фоллбек — Handle + любой RemoteEvent. ]]
-local function IsGunTool(tool)
-    if not tool or not tool:IsA("Tool") then return false end
-    if tool:FindFirstChild("Ammo") then return true end
-    if tool:FindFirstChild("ShootingCooldown") then return true end
-    if tool:FindFirstChild("FireRate") then return true end
-    if tool:FindFirstChild("Handle") and tool:FindFirstChildWhichIsA("RemoteEvent") then return true end
-    return false
-end
-
---[[ Только экипированный gun. Activate() на тулзе из Backpack не стреляет. ]]
-local function GetGun()
     local char = LocalPlayer.Character
-    if not char then return nil end
-    for _, tool in ipairs(char:GetChildren()) do
-        if IsGunTool(tool) then return tool end
-    end
-    return nil
-end
+    local targetChar = targetStrafeTarget.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then return end
 
-local function GetAmmoValue(tool)
-    if not tool then return nil end
-    local ammo = tool:FindFirstChild("Ammo")
-    if not ammo then
-        ammo = tool:FindFirstChild("Ammo", true)
-    end
-    if ammo and ammo:IsA("ValueBase") and typeof(ammo.Value) == "number" then
-        return ammo
-    end
-    return nil
-end
+    local hrp = char.HumanoidRootPart
+    local targetHrp = targetChar.HumanoidRootPart
 
---[[ Хук на кулдаун: игра пишет туда значение -> мы мгновенно возвращаем 0.
-     Именно это превращает обычную стрельбу в rapid fire. ]]
-local function HookCooldownValue(v)
-    if not v or not v:IsA("ValueBase") then return end
-    if typeof(v.Value) ~= "number" then return end
-    if hookedCooldowns[v] then return end
-    hookedCooldowns[v] = true
-    local conn = v.Changed:Connect(function()
-        if not Settings.RapidFire.ZeroCooldown then return end
-        local ok, val = pcall(function() return v.Value end)
-        if ok and type(val) == "number" and val ~= 0 then
-            pcall(function() v.Value = 0 end)
-        end
-    end)
-    table.insert(cooldownHookConns, conn)
-end
-
-local function ZeroGunCooldowns(tool)
-    if not tool or not Settings.RapidFire.ZeroCooldown then return end
-    for _, name in ipairs(COOLDOWN_NAMES) do
-        local v = tool:FindFirstChild(name, true)
-        if v and v:IsA("ValueBase") and typeof(v.Value) == "number" then
-            if v.Value ~= 0 then
-                pcall(function() v.Value = 0 end)
-            end
-            HookCooldownValue(v)
-        end
-    end
-end
-
---[[ Пройтись по всем пушкам: в руках + в рюкзаке. Обнуляем заранее,
-     чтобы после переключения ствол уже был "горячий". ]]
-local function ZeroAllGunCooldowns()
-    if not Settings.RapidFire.ZeroCooldown then return end
-    local containers = {}
-    local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
-    if backpack then table.insert(containers, backpack) end
-    if LocalPlayer.Character then table.insert(containers, LocalPlayer.Character) end
-    for _, container in ipairs(containers) do
-        for _, tool in ipairs(container:GetChildren()) do
-            if IsGunTool(tool) then
-                ZeroGunCooldowns(tool)
-            end
-        end
-    end
-end
-
---[[ Дублирующий выстрел через remote внутри тулзы. По умолчанию выключено. ]]
-local function FireRemoteShot(tool)
-    if not tool or not Settings.RapidFire.UseRemote then return end
-    local names = { "Shoot", "ShootGun", "Fire", "FireGun" }
-    for _, name in ipairs(names) do
-        local remote = tool:FindFirstChild(name)
-        if remote and remote:IsA("RemoteEvent") then
-            pcall(function() remote:FireServer() end)
-            return
-        end
-    end
-end
-
---[[ Курсор над нашим меню / флоат-кнопками? Тогда не стреляем. ]]
-local function IsOverOurGui()
-    local pos = UserInputService:GetMouseLocation()
-    local x, y = pos.X, pos.Y
-    local targets = { MainFrame, ToggleButton, AimFloatBtn, SilentFloatBtn, FlyFloatBtn }
-    for _, obj in ipairs(targets) do
-        local ok, hit = pcall(function()
-            if not obj or not obj.Visible then return false end
-            local p, s = obj.AbsolutePosition, obj.AbsoluteSize
-            return x >= p.X and x <= p.X + s.X and y >= p.Y and y <= p.Y + s.Y
-        end)
-        if ok and hit then return true end
-    end
-    return false
-end
-
---[[ Виртуальный клик мышью — главный универсальный путь.
-     Игра видит его как настоящий MouseButton1, а не как Activate().
-     Если игра ловит Activate — работает и он; если нет — сработает этот. ]]
-local function VirtualClick()
-    if not VirtualInputManager then return false end
-    local pos = UserInputService:GetMouseLocation()
-    local x, y = math.floor(pos.X), math.floor(pos.Y)
-    local ok = pcall(function()
-        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
-    end)
-    if not ok then return false end
-    pcall(function()
-        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
-    end)
-    return true
-end
-
---[[ Фоллбек для экзекьюторов, где есть mouse1click() (Synapse-стиль). ]]
-local function ExecutorClick()
-    if type(mouse1click) == "function" then
-        return pcall(mouse1click)
-    end
-    return false
-end
-
---[[ Одна итерация выстрела. Возвращает (fired, note). ]]
-local function RapidFireStep()
-    local gun = GetGun()
-    if not gun then return false, "нет gun в руках" end
-    if IsOverOurGui() then return false, "курсор над меню" end
-
-    -- игры гасят Tool.Enabled на кулдаун — возвращаем в рабочее состояние
-    if not gun.Enabled then
-        if Settings.RapidFire.ZeroCooldown then
-            pcall(function() gun.Enabled = true end)
-        else
-            return false, "gun.Enabled = false"
-        end
-    end
-
-    local ammo = GetAmmoValue(gun)
-    if ammo then
-        if Settings.RapidFire.RequireAmmo and ammo.Value <= 0 then
-            local reload = gun:FindFirstChild("Reload") or gun:FindFirstChild("ReloadEvent")
-            if reload and reload:IsA("RemoteEvent") then
-                pcall(function() reload:FireServer() end)
-            end
-            return false, "0 патронов"
-        end
-        if Settings.RapidFire.InfAmmo then
-            pcall(function() ammo.Value = math.max(ammo.Value, 1) end)
-        end
-    end
-
-    ZeroGunCooldowns(gun)
-
-    local mode = Settings.RapidFire.Mode or MODE_BOTH
-    local fired = false
-
-    if mode == MODE_ACTIVATE or mode == MODE_BOTH then
-        local ok = pcall(function() gun:Activate() end)
-        if ok then fired = true end
-    end
-
-    if mode == MODE_VCLICK or mode == MODE_BOTH then
-        if VirtualClick() then
-            fired = true
-        elseif ExecutorClick() then
-            fired = true
-        end
-    end
-
-    FireRemoteShot(gun)
-
-    if fired then
-        rapidShots = rapidShots + 1
-        rapidLastNote = gun.Name
-    end
-    return fired, nil
-end
-
---[[ Главный цикл. Heartbeat: не зависит от fps и не копит дрейф.
-     Зажатие читаем напрямую у движка, а не из флагов событий. ]]
-local function RapidFireTick(dt)
-    if not Settings.RapidFire.Enabled then
-        rapidAccum = 0
-        return
-    end
-    if not (UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or TouchHeldCount > 0) then
-        rapidAccum = 0
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local targetHum = targetChar:FindFirstChildOfClass("Humanoid")
+    if (hum and hum.Health <= 0) or (targetHum and targetHum.Health <= 0) then
+        ts.Enabled = false
         return
     end
 
-    local delay = Settings.RapidFire.Delay or 0
-    if delay < 0 then delay = 0 end
+    strafeAngle = strafeAngle + (ts.Speed * dt)
 
-    rapidAccum = rapidAccum + dt
-    if rapidAccum < delay then return end
-
-    -- вычитаем, а не сбрасываем: интервал не "квантуется" по кадрам
-    rapidAccum = rapidAccum - delay
-    if rapidAccum > delay then rapidAccum = 0 end
-
-    local ok, fired, err = pcall(RapidFireStep)
-    if not ok then
-        rapidLastError = tostring(fired)
-    elseif err then
-        rapidLastError = tostring(err)
-    else
-        rapidLastError = "-"
-    end
-end
-
---[[ Статус-лейбл: единственный честный источник "работает или нет". ]]
-local function BuildStatusLabel()
-    local lbl = Instance.new("TextLabel")
-    lbl.Name = "CociteRapidStatus"
-    lbl.BackgroundColor3 = Color3.fromRGB(10, 8, 18)
-    lbl.BackgroundTransparency = 0.25
-    lbl.BorderSizePixel = 0
-    lbl.Position = UDim2.new(0, 14, 1, -58)
-    lbl.Size = UDim2.new(0, 430, 0, 26)
-    lbl.Font = Enum.Font.GothamSemibold
-    lbl.TextSize = 11
-    lbl.TextColor3 = Color3.fromRGB(200, 180, 240)
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.TextYAlignment = Enum.TextYAlignment.Center
-    lbl.Text = "RAPID: инициализация..."
-    Instance.new("UICorner", lbl).CornerRadius = UDim.new(0, 8)
-    local stroke = Instance.new("UIStroke", lbl)
-    stroke.Color = Color3.fromRGB(120, 50, 200)
-    stroke.Thickness = 1.2
-    local pad = Instance.new("UIPadding", lbl)
-    pad.PaddingLeft = UDim.new(0, 8)
-    lbl.Parent = ScreenGui
-    return lbl, stroke
-end
-
-rapidStatusLbl, rapidStatusStroke = BuildStatusLabel()
-
-local function UpdateStatusLabel()
-    if not rapidStatusLbl then return end
-    local show = Settings.RapidFire.ShowStatus
-    rapidStatusLbl.Visible = show
-    if not show then return end
-
-    local gun = GetGun()
-    local gunName = gun and gun.Name or "нет в руках"
-    local held = (UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or TouchHeldCount > 0) and "да" or "нет"
-
-    rapidStatusLbl.Text = string.format(
-        "RAPID: %s | gun: %s | mode: %s | %d/s | всего: %d | зажат: %s | err: %s",
-        Settings.RapidFire.Enabled and "ON" or "OFF",
-        gunName,
-        tostring(Settings.RapidFire.Mode or MODE_BOTH),
-        math.floor(rapidRateShow + 0.5),
-        rapidShots,
-        held,
-        rapidLastError
-    )
-
-    if Settings.RapidFire.Enabled then
-        rapidStatusLbl.TextColor3 = Color3.fromRGB(120, 255, 170)
-        if rapidStatusStroke then
-            rapidStatusStroke.Color = Color3.fromRGB(60, 200, 120)
-        end
-    else
-        rapidStatusLbl.TextColor3 = Color3.fromRGB(170, 160, 190)
-        if rapidStatusStroke then
-            rapidStatusStroke.Color = Color3.fromRGB(80, 60, 120)
-        end
-    end
-end
-
---[[ Трекинг пальцев на мобиле. Мышь НЕ через флаги — её читает IsMouseButtonPressed. ]]
-table.insert(_G.CociteConnections, UserInputService.InputBegan:Connect(function(input, gpe)
-    if input.UserInputType == Enum.UserInputType.Touch and not gpe then
-        TouchHeldCount = TouchHeldCount + 1
-    end
-end))
-
-table.insert(_G.CociteConnections, UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        TouchHeldCount = math.max(0, TouchHeldCount - 1)
-    end
-end))
-
-table.insert(_G.CociteConnections, UserInputService.WindowFocusReleased:Connect(function()
-    TouchHeldCount = 0
-end))
-
---[[ Heartbeat: сам тик + раз в 0.25 c держим кулдауны всех стволов на нуле
-     + обновляем статус-лейбл (4 раза/c). ]]
-local sweepAccum = 0
-local statusAccum = 0
-local rateAccum = 0
-local rateStartShots = 0
-
-local rapidTickConn = RunService.Heartbeat:Connect(function(dt)
-    RapidFireTick(dt)
-
-    if Settings.RapidFire.Enabled and Settings.RapidFire.ZeroCooldown then
-        sweepAccum = sweepAccum + dt
-        if sweepAccum >= 0.25 then
-            sweepAccum = 0
-            ZeroAllGunCooldowns()
-        end
-    end
-
-    -- счётчик выстрелов/сек для лейбла
-    rateAccum = rateAccum + dt
-    if rateAccum >= 0.5 then
-        rapidRateShow = (rapidShots - rateStartShots) / rateAccum
-        rateStartShots = rapidShots
-        rateAccum = 0
-    end
-
-    statusAccum = statusAccum + dt
-    if statusAccum >= 0.25 then
-        statusAccum = 0
-        UpdateStatusLabel()
+    if ts.Mode == "Orbit" then
+        local x = targetHrp.Position.X + math.cos(strafeAngle) * ts.Radius
+        local z = targetHrp.Position.Z + math.sin(strafeAngle) * ts.Radius
+        local y = targetHrp.Position.Y + 3
+        hrp.CFrame = CFrame.new(Vector3.new(x, y, z), targetHrp.Position)
+    elseif ts.Mode == "Above" then
+        local x = targetHrp.Position.X + math.cos(strafeAngle) * (ts.Radius / 2)
+        local z = targetHrp.Position.Z + math.sin(strafeAngle) * (ts.Radius / 2)
+        local y = targetHrp.Position.Y + ts.Height
+        hrp.CFrame = CFrame.new(Vector3.new(x, y, z), targetHrp.Position)
+    elseif ts.Mode == "Random" then
+        local rx = math.random(-5, 5)
+        local rz = math.random(-5, 5)
+        local x = targetHrp.Position.X + math.cos(strafeAngle) * ts.Radius + rx
+        local z = targetHrp.Position.Z + math.sin(strafeAngle) * ts.Radius + rz
+        local y = targetHrp.Position.Y + ts.Height
+        hrp.CFrame = CFrame.new(Vector3.new(x, y, z), targetHrp.Position)
     end
 end)
-table.insert(_G.CociteConnections, rapidTickConn)
-
--- API для UI
-_G.CociteRapidFire = {
-    Step = RapidFireStep,
-    GetGun = GetGun,
-    Stop = function()
-        TouchHeldCount = 0
-        rapidAccum = 0
-    end,
-    Test = function()
-        local ok, fired, err = pcall(RapidFireStep)
-        if not ok then
-            rapidLastError = tostring(fired)
-            return false
-        end
-        rapidLastError = err or "-"
-        return fired, err
-    end,
-}
--- =================== END RAPID FIRE ===================
+-- =================== END TARGET STRAFE ===================
 
 local AimbotFOVCircle = nil
 local SilentFOVCircle = nil
@@ -1941,7 +1548,105 @@ CreateSlider(AimbotPage, "Spread Amount", 0, 100, Settings.NoSpread.Amount, "%",
     Settings.NoSpread.Amount = val
 end)
 
--- RAPID FIRE UI перенесён в начало вкладки AIMBOT (см. выше)
+-- TARGET STRAFE (В самом низу вкладки AIMBOT)
+CreateSection(AimbotPage, "TARGET STRAFE")
+
+CreateToggle(AimbotPage, "Target Strafe Master", Settings.TargetStrafe.Enabled, function(state)
+    Settings.TargetStrafe.Enabled = state
+end)
+
+CreateCycle(AimbotPage, "Strafe Mode", {"Orbit", "Above", "Random"}, 1, function(val)
+    Settings.TargetStrafe.Mode = val
+end)
+
+CreateSlider(AimbotPage, "Strafe Speed", 5, 100, Settings.TargetStrafe.Speed, "", 5, function(val)
+    Settings.TargetStrafe.Speed = val
+end)
+
+CreateSlider(AimbotPage, "Strafe Radius", 5, 50, Settings.TargetStrafe.Radius, " st", 1, function(val)
+    Settings.TargetStrafe.Radius = val
+end)
+
+CreateSlider(AimbotPage, "Strafe Height", 2, 30, Settings.TargetStrafe.Height, " st", 1, function(val)
+    Settings.TargetStrafe.Height = val
+end)
+
+local tsPickerFrame = Instance.new("Frame", AimbotPage)
+tsPickerFrame.BackgroundColor3 = Color3.fromRGB(18, 14, 30)
+tsPickerFrame.Size = UDim2.new(1, 0, 0, 34)
+Instance.new("UICorner", tsPickerFrame).CornerRadius = UDim.new(0, 10)
+local tspStroke = Instance.new("UIStroke", tsPickerFrame)
+tspStroke.Color = Color3.fromRGB(100, 45, 170)
+tspStroke.Thickness = 1.3
+
+local tsSelectedName = "None"
+local tsPlayers = {}
+
+local function RefreshTSPlayers()
+    tsPlayers = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(tsPlayers, p.Name)
+        end
+    end
+    if #tsPlayers == 0 then
+        table.insert(tsPlayers, "None in server")
+        tsSelectedName = "None"
+        targetStrafeTarget = nil
+    else
+        if not table.find(tsPlayers, tsSelectedName) then
+            tsSelectedName = tsPlayers[1]
+            targetStrafeTarget = Players:FindFirstChild(tsSelectedName)
+        end
+    end
+end
+RefreshTSPlayers()
+
+local tsSelectBtn = Instance.new("TextButton", tsPickerFrame)
+tsSelectBtn.BackgroundTransparency = 1
+tsSelectBtn.Position = UDim2.new(0, 10, 0, 0)
+tsSelectBtn.Size = UDim2.new(1, -70, 1, 0)
+tsSelectBtn.Font = Enum.Font.GothamSemibold
+tsSelectBtn.Text = "Target: " .. tsSelectedName
+tsSelectBtn.TextColor3 = Color3.fromRGB(210, 190, 255)
+tsSelectBtn.TextSize = 11
+tsSelectBtn.TextXAlignment = Enum.TextXAlignment.Left
+
+local tsCurIdx = 1
+tsSelectBtn.MouseButton1Click:Connect(function()
+    RefreshTSPlayers()
+    if #tsPlayers > 0 and tsPlayers[1] ~= "None in server" then
+        tsCurIdx = tsCurIdx + 1
+        if tsCurIdx > #tsPlayers then tsCurIdx = 1 end
+        tsSelectedName = tsPlayers[tsCurIdx]
+        targetStrafeTarget = Players:FindFirstChild(tsSelectedName)
+        tsSelectBtn.Text = "Target: " .. tsSelectedName
+        if targetStrafeTarget then
+            lockedSilentTarget = targetStrafeTarget
+        end
+    else
+        tsSelectBtn.Text = "Target: None"
+        tsSelectedName = "None"
+        targetStrafeTarget = nil
+    end
+end)
+
+local tsSetBtn = Instance.new("TextButton", tsPickerFrame)
+tsSetBtn.BackgroundColor3 = Color3.fromRGB(120, 30, 210)
+tsSetBtn.Position = UDim2.new(1, -56, 0.5, -12)
+tsSetBtn.Size = UDim2.new(0, 48, 0, 24)
+tsSetBtn.Font = Enum.Font.GothamBold
+tsSetBtn.Text = "LOCK"
+tsSetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tsSetBtn.TextSize = 10
+Instance.new("UICorner", tsSetBtn).CornerRadius = UDim.new(0, 6)
+
+tsSetBtn.MouseButton1Click:Connect(function()
+    if targetStrafeTarget then
+        lockedSilentTarget = targetStrafeTarget
+        tsSelectBtn.Text = "Target: " .. targetStrafeTarget.Name .. " (LOCKED)"
+    end
+end)
 
 -- ESP
 CreateSection(ESPPage, "ESP VISUALS")
